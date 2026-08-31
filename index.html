@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E1E1E">
+<title>SFEXPRESS DATABASE - Warehouse & Performance</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --sf-red:#DC001B;--sf-black:#1E1E1E;--sf-blue:#0277BD;--sf-green:#2E7D32;
+  --bg:#f1f5f9;--card:#fff;--border:#cbd5e1;--muted:#64748b;--danger:#dc2626;
+  --shadow:0 4px 16px rgba(15,23,42,.07);
+}
+*{box-sizing:border-box}
+html{font-size:16px}
+body{margin:0;padding:12px;background:var(--bg);color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.app{max-width:1500px;margin:auto;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.header{background:var(--sf-black);color:#fff;border-bottom:4px solid var(--sf-red);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{background:var(--sf-red);font-weight:900;padding:5px 9px;border-radius:5px;flex:none}
+.title{font-weight:800;font-size:16px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account{font-size:12px;white-space:nowrap}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);background:#eaecee}
+.tab{border:0;padding:13px 10px;background:#eaecee;font-weight:800;color:#475569}
+.tab.active:nth-child(1){background:var(--sf-red);color:#fff}.tab.active:nth-child(2){background:var(--sf-blue);color:#fff}.tab.active:nth-child(3){background:var(--sf-green);color:#fff}
+.page{display:none;padding:18px}.page.active{display:block}
+.section{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:15px}
+.section-title{font-size:15px;font-weight:800;margin:0 0 12px}
+.grid{display:grid;gap:12px}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.field label{display:block;font-size:12px;font-weight:800;color:#334155;margin-bottom:5px}
+input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:9px;background:#fff;color:#0f172a}
+textarea{resize:vertical;min-height:105px}
+.btn{border:0;border-radius:6px;padding:9px 13px;font-weight:800;color:#fff;background:#334155}
+.btn.red{background:var(--sf-red)}.btn.blue{background:var(--sf-blue)}.btn.green{background:var(--sf-green)}.btn.orange{background:#f59e0b}.btn.dark{background:#1e293b}.btn.light{background:#e2e8f0;color:#1e293b}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.warehouse-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--border);padding:10px;border-radius:8px;margin-bottom:15px}
+.warehouse-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.badges{display:flex;gap:5px;border-left:2px solid var(--border);padding-left:10px}
+.badge{position:relative;color:#fff;font-size:11px;font-weight:900;padding:6px 8px;border-radius:5px}.ok{background:#22c55e}.bad{background:#ef4444}
+.badge span{display:none;position:absolute;z-index:20;top:110%;left:50%;transform:translateX(-50%);width:240px;background:#0f172a;color:#fff;padding:8px;border-radius:6px;font-weight:500}.badge:hover span{display:block}
+.report-types{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.report-box{border:2px solid #e2e8f0;border-radius:7px;padding:12px}.blue-border{border-color:#004085}.orange-border{border-color:#c35500}.black-border{border-color:#1e1e1e}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:15px}
+.kpi{border:1px solid #e2e8f0;border-left:4px solid var(--sf-green);border-radius:7px;padding:13px;background:#f8fafc}
+.kpi-label{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase}.kpi-value{font-size:24px;font-weight:900;margin-top:5px}.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:7px;max-height:480px}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:850px}
+th,td{padding:8px 9px;border-bottom:1px solid #e2e8f0;border-right:1px solid #eef2f7;white-space:nowrap;text-align:left}
+th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475569}
+.status{display:inline-block;padding:3px 7px;border-radius:5px;font-size:11px;font-weight:900}.on{background:#dcfce7;color:#166534}.late{background:#fee2e2;color:#991b1b}.adjusted{background:#e0f2fe;color:#0369a1}.pending{background:#fef3c7;color:#92400e}
+.subtabs{display:flex;gap:8px;overflow:auto;margin-bottom:15px}.subtab{border:0;background:#e2e8f0;padding:9px 12px;border-radius:6px;font-weight:800;white-space:nowrap}.subtab.active{background:var(--sf-green);color:#fff}
+.notice{padding:9px 11px;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:12px;margin-top:8px}
+.empty{padding:25px;text-align:center;color:var(--muted)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;padding:14px}.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:9px;border-top:5px solid var(--sf-red);width:min(520px,100%);padding:18px;max-height:90vh;overflow:auto}
+.toast{position:fixed;right:18px;bottom:18px;z-index:2000;background:#0f172a;color:#fff;padding:10px 14px;border-radius:7px;box-shadow:var(--shadow);display:none;font-size:13px}.toast.show{display:block}
+.chart{height:260px;display:flex;align-items:flex-end;gap:10px;padding:15px 10px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;overflow-x:auto}
+.bar{min-width:48px;background:#2e7d32;border-radius:5px 5px 0 0;position:relative}.bar small{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px}.bar b{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px}
+.footer{padding:10px 15px;text-align:center;color:#64748b;font-size:11px;border-top:1px solid #e2e8f0}
+@media(max-width:900px){
+  body{padding:6px}.header{padding:10px 12px}.title{font-size:13px}.account{display:none}
+  .page{padding:10px}.grid-3,.grid-4,.report-types{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  html{font-size:15px}.tabs{grid-template-columns:1fr}.tab{padding:11px;text-align:left}
+  .header{align-items:flex-start}.brand{align-items:flex-start}.title{white-space:normal;line-height:1.25}
+  .grid-2,.grid-3,.grid-4,.report-types,.kpis{grid-template-columns:1fr}
+  .warehouse-left{width:100%}.badges{border-left:0;border-top:1px solid var(--border);padding:8px 0 0;width:100%}
+  .warehouse-bar{align-items:stretch}.warehouse-bar>.field{width:100%}.actions .btn{width:100%}
+  .section{padding:11px}.kpi-value{font-size:22px}.table-wrap{max-height:55vh}
+  table{min-width:780px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="header">
+  <div class="brand"><div class="logo">SF</div><div class="title">HỆ THỐNG QUẢN LÝ KHO HÀNG & PERFORMANCE TỔNG HỢP</div></div>
+  <div class="account">Tài khoản: <b>Admin_Kho</b></div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" onclick="switchTab('uploadTab',this)">📌 1. UPLOAD DATA</button>
+  <button class="tab" onclick="switchTab('downloadTab',this)">📥 2. DOWNLOAD DATA</button>
+  <button class="tab" onclick="switchTab('viewTab',this)">📊 3. VIEW REPORT</button>
+</nav>
+
+<main>
+<section id="uploadTab" class="page active">
+  <div class="warehouse-bar">
+    <div class="warehouse-left">
+      <div class="field"><label>Kho</label><select id="warehouseSelect" onchange="loadWarehouseDay()"><option>SGN01S</option><option>SGN02S</option><option selected>SGN03S</option><option>SGN04S</option></select></div>
+      <div class="badges">
+        <div class="badge ok">SGN01<span>Kho 1: trạng thái nhân sự & dữ liệu.</span></div>
+        <div class="badge ok">SGN02<span>Kho 2: trạng thái nhân sự & dữ liệu.</span></div>
+        <div class="badge bad" id="badgeSGN03">SGN03<span id="tooltipSGN03">Đang tải...</span></div>
+        <div class="badge ok">SGN04<span>Kho 4: trạng thái nhân sự & dữ liệu.</span></div>
+      </div>
+      <div class="notice" id="headcountSummaryDisplay">Đang tải...</div>
+      <div class="notice" id="anomalyDisplay">Đang tải...</div>
+      <button class="btn dark" onclick="openStaffModal()">✏️ Cập nhật NS & Bất thường</button>
+    </div>
+    <div class="field"><label>Ngày</label><input type="date" id="checkDate" onchange="loadWarehouseDay()"></div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title">📊 CHỌN LOẠI BÁO CÁO CẦN NHẬP DỮ LIỆU</h3>
+    <div class="report-types">
+      <div class="report-box blue-border"><b>🔵 1. Hàng xuất (PU)</b><select id="group1Select"><option value="bc_1_1">1.1. BC SL hàng xuất (PU)</option><option value="bc_1_2" selected>1.2. BC SL xuất tồn (PU)</option><option value="bc_1_3">1.3. BC NS khai thác kho (PU)</option></select></div>
+      <div class="report-box orange-border"><b>🟠 2. Hàng nhập (DE)</b><select id="group2Select"><option value="bc_2_1">2.1. BC SL hàng nhập (DE)</option><option value="bc_2_2">2.2. BC SL nhập tồn (DE)</option></select></div>
+      <div class="report-box black-border"><b>⚫ 3. Lịch trình xe</b><select id="group3Select"><option value="bc_3_1">3.1. BC Lịch trình xe PU</option></select></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title">📥 NHẬP DATA</h3>
+    <div class="grid grid-2">
+      <div class="field"><label>Mã / Tên nhân viên</label><input id="inputEmp" placeholder="VD: NV_An / SF123"></div>
+      <div class="field"><label>Mã báo cáo (tự động)</label><input id="inputReportId" readonly></div>
+    </div>
+    <div class="field" style="margin-top:10px"><label>Dán dữ liệu báo cáo từ Excel (Ctrl+V)</label><textarea id="pastedText" placeholder="Dán bảng dữ liệu Excel vào đây. Hệ thống sẽ lưu bản ghi theo ngày/kho/nhân viên/loại báo cáo."></textarea></div>
+    <div class="actions">
+      <button class="btn red" onclick="submitReportData()">🚀 NỘP BÁO CÁO & KIỂM TRA LEADTIME</button>
+      <button class="btn light" onclick="clearPaste()">🧹 Xóa nội dung</button>
+    </div>
+    <div class="notice">💾 Dữ liệu được lưu ngay trên trình duyệt bằng LocalStorage. Không cần server cho phiên bản này; dữ liệu vẫn còn sau khi đóng/mở trình duyệt trên cùng thiết bị.</div>
+  </div>
+
+  <div class="section">
+    <h3 class="section-title">📈 LỊCH SỬ NỘP BÁO CÁO & PERFORMANCE</h3>
+    <div class="table-wrap"><table id="performanceTable"><thead><tr><th>Mã BC</th><th>Ngày</th><th>Kho</th><th>Người nhập</th><th>Deadline</th><th>Giờ gửi</th><th>Performance</th><th>Thao tác</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<section id="downloadTab" class="page">
+  <div class="section">
+    <h3 class="section-title" style="color:var(--sf-blue)">📥 TRUY XUẤT & DOWNLOAD DỮ LIỆU</h3>
+    <div class="grid grid-3">
+      <div class="field"><label>Kho hàng</label><select id="dlWarehouse"><option value="ALL">ALL</option><option>SGN01S</option><option>SGN02S</option><option>SGN03S</option><option>SGN04S</option></select></div>
+      <div class="field"><label>Mã / Tên nhân viên</label><input id="dlEmpId" placeholder="VD: SF123, NV_An"></div>
+      <div class="field"><label>Loại báo cáo</label><select id="dlReportType"><option value="ALL">ALL</option><option value="bc_1_1">1.1. BC SL hàng xuất (PU)</option><option value="bc_1_2">1.2. BC SL xuất tồn (PU)</option><option value="bc_1_3">1.3. BC NS khai thác kho (PU)</option><option value="bc_2_1">2.1. BC SL hàng nhập (DE)</option><option value="bc_2_2">2.2. BC SL nhập tồn (DE)</option><option value="bc_3_1">3.1. BC Lịch trình xe PU</option></select></div>
+      <div class="field"><label>Từ ngày</label><input type="date" id="dlFromDate"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" id="dlToDate"></div>
+      <div class="field"><label>Tìm toàn dòng dữ liệu</label><input id="dlKeyword" placeholder="Mã vận đơn / tuyến / trạng thái..."></div>
+    </div>
+    <div class="actions"><button class="btn dark" onclick="filterDownloadData()">🔍 XEM DATA</button><button class="btn blue" onclick="exportToExcel()">📥 XUẤT EXCEL (.XLSX)</button><button class="btn light" onclick="exportCSV()">📄 XUẤT CSV</button></div>
+  </div>
+  <div class="section">
+    <h3 class="section-title">📋 KẾT QUẢ: <span id="previewCount">0</span> dòng</h3>
+    <div class="table-wrap"><table id="dlResultTable"><thead><tr><th>Ngày</th><th>Kho</th><th>Nhân viên</th><th>Mã BC</th><th>Cột 1</th><th>Cột 2</th><th>Cột 3</th><th>Trạng thái</th><th>Giờ gửi</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<section id="viewTab" class="page">
+  <div class="subtabs">
+    <button class="subtab active" onclick="switchSubTab('subViewReport',this)">📊 Báo cáo & Thống kê</button>
+    <button class="subtab" onclick="switchSubTab('subAdminKPI',this)">⚙️ Admin Setup KPI & Leadtime</button>
+  </div>
+  <div id="subViewReport">
+    <div class="section">
+      <div class="grid grid-3">
+        <div class="field"><label>Kho</label><select id="rptWarehouse" onchange="renderDashboard()"><option value="ALL">ALL</option><option>SGN01S</option><option>SGN02S</option><option>SGN03S</option><option>SGN04S</option></select></div>
+        <div class="field"><label>Khoảng thời gian</label><select id="rptTimeRange" onchange="renderDashboard()"><option value="TODAY">Hôm nay (Daily)</option><option value="WEEK">Tuần này (Weekly)</option><option value="MONTH">Tháng này (Monthly)</option><option value="MTD" selected>MTD</option><option value="YTD">YTD</option><option value="QUARTER">Theo Quý</option></select></div>
+        <div class="field"><label>Quý</label><select id="rptQuarter" onchange="renderDashboard()"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></div>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-label">Tổng dòng dữ liệu</div><div class="kpi-value" id="kpiTotalRows">0</div><div class="kpi-sub">Theo bộ lọc hiện tại</div></div>
+      <div class="kpi"><div class="kpi-label">Kho đã nộp</div><div class="kpi-value" id="kpiWhSubmitted">0 / 4</div><div class="kpi-sub">Có dữ liệu trong kỳ</div></div>
+      <div class="kpi"><div class="kpi-label">Tỷ lệ đạt KPI</div><div class="kpi-value" id="kpiSuccess">0%</div><div class="kpi-sub">Không trễ deadline</div></div>
+      <div class="kpi"><div class="kpi-label">Tổng số lượng</div><div class="kpi-value" id="kpiQty">0</div><div class="kpi-sub">Từ Cột 3 dạng số</div></div>
+      <div class="kpi"><div class="kpi-label">Chỉnh sửa quá hạn</div><div class="kpi-value" id="kpiLateAdjust">0</div><div class="kpi-sub">Theo quy tắc Admin</div></div>
+    </div>
+    <div class="section"><h3 class="section-title">📊 SẢN LƯỢNG THEO KHO</h3><div id="warehouseChart" class="chart"></div></div>
+    <div class="section"><h3 class="section-title">🏆 PERFORMANCE THEO KHO</h3><div class="table-wrap"><table><thead><tr><th>Kho</th><th>Dòng dữ liệu</th><th>Số lượng</th><th>Báo cáo đạt KPI</th><th>Tỷ lệ KPI</th></tr></thead><tbody id="warehouseKpiBody"></tbody></table></div></div>
+  </div>
+
+  <div id="subAdminKPI" style="display:none">
+    <div class="section"><h3 class="section-title" style="color:var(--sf-red)">⚙️ THIẾT LẬP TIÊU CHUẨN KPI & LEADTIME</h3>
+      <div class="grid grid-2">
+        <div class="section" style="margin:0;background:#f8fafc"><h4>1. Leadtime theo báo cáo</h4>
+          <div class="grid grid-2">
+            <div class="field"><label>Kho</label><select id="cfgWarehouse"><option>SGN01S</option><option>SGN02S</option><option>SGN03S</option><option>SGN04S</option></select></div>
+            <div class="field"><label>Loại báo cáo</label><select id="cfgReportType"><option>bc_1_1</option><option selected>bc_1_2</option><option>bc_1_3</option><option>bc_2_1</option><option>bc_2_2</option><option>bc_3_1</option></select></div>
+            <div class="field"><label>Deadline</label><input type="time" id="cfgDeadline" value="10:00"></div>
+            <div class="field"><label>Trễ tối đa cho phép (phút)</label><input type="number" id="cfgGrace" value="15" min="0"></div>
+          </div>
+        </div>
+        <div class="section" style="margin:0;background:#f8fafc"><h4>2. Quy tắc Re-submit</h4>
+          <div class="field"><label>Thời hạn xin chỉnh sửa (phút)</label><input type="number" id="cfgMaxAdjustMinutes" value="60" min="0"></div>
+          <div class="field"><label>Mức phạt KPI khi quá hạn (%)</label><input type="number" id="cfgPenalty" value="15" min="0" max="100"></div>
+          <div class="field"><label>Phê duyệt</label><select id="cfgApproval"><option>Tự động chấp nhận trong thời hạn</option><option>Bắt buộc Admin duyệt thủ công</option></select></div>
+        </div>
+      </div>
+      <div class="actions"><button class="btn red" onclick="saveConfig()">💾 LƯU CẤU HÌNH</button><button class="btn light" onclick="resetConfig()">↩️ Khôi phục mặc định</button></div>
+      <div class="notice">Quy tắc mặc định: xin chỉnh sửa trong ≤ 60 phút từ lúc gửi được tính “Đã điều chỉnh (Đạt KPI)”; quá thời hạn được ghi nhận là trễ và áp dụng mức phạt cấu hình.</div>
+    </div>
+  </div>
+</section>
+</main>
+<div class="footer">SFEXPRESS DATABASE • Responsive PC / Tablet / Mobile • Dữ liệu cục bộ trên thiết bị</div>
+</div>
+
+<div id="staffModal" class="modal">
+ <div class="modal-card">
+  <h3 style="margin:0 0 14px">✏️ CẬP NHẬT NHÂN SỰ & BẤT THƯỜNG KHO</h3>
+  <div class="grid grid-3">
+   <div class="field"><label>BA</label><input type="number" id="inputBA" min="0"></div>
+   <div class="field"><label>VAN</label><input type="number" id="inputVAN" min="0"></div>
+   <div class="field"><label>WA</label><input type="number" id="inputWA" min="0"></div>
+  </div>
+  <div class="field" style="margin-top:10px"><label>Nhân viên nghỉ phép</label><input id="inputLeaveStaff"></div>
+  <div class="field" style="margin-top:10px"><label>Bất thường trong ngày</label><textarea id="inputAnomaly"></textarea></div>
+  <div class="actions" style="justify-content:flex-end"><button class="btn light" onclick="closeStaffModal()">Hủy</button><button class="btn red" onclick="saveStaffInfo()">💾 Lưu</button></div>
+ </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const KEY='SFEXPRESS_DB_V2';
+const defaultConfig={maxAdjustMinutes:60,penalty:15,approval:'Tự động chấp nhận trong thời hạn',deadline:{SGN01S:'10:00',SGN02S:'10:00',SGN03S:'10:00',SGN04S:'10:00'},grace:{SGN01S:15,SGN02S:15,SGN03S:15,SGN04S:15}};
+const seedData=[
+ {id:'seed1',date:'2026-08-31',warehouse:'SGN01S',emp:'NV_An',reportType:'bc_1_2',col1:'SF100293841',col2:'Tuyến Tân Bình',col3:'150',status:'Hoàn thành',submittedAt:'2026-08-31T09:45',adjustments:[]},
+ {id:'seed2',date:'2026-08-31',warehouse:'SGN02S',emp:'NV_Sang',reportType:'bc_1_2',col1:'SF100293842',col2:'Tuyến Quận 1',col3:'85',status:'Hoàn thành',submittedAt:'2026-08-31T09:50',adjustments:[]},
+ {id:'seed3',date:'2026-08-31',warehouse:'SGN03S',emp:'NV_Bao',reportType:'bc_1_2',col1:'SF100293843',col2:'Tuyến Bình Thạnh',col3:'210',status:'Chờ xử lý',submittedAt:'2026-08-31T10:10',adjustments:[]},
+ {id:'seed4',date:'2026-08-30',warehouse:'SGN04S',emp:'NV_Tuan',reportType:'bc_1_2',col1:'SF100293844',col2:'Tuyến Thủ Đức',col3:'120',status:'Hoàn thành',submittedAt:'2026-08-30T09:40',adjustments:[]}
+];
+let db=loadDB();
+
+function loadDB(){
+ try{const x=JSON.parse(localStorage.getItem(KEY));if(x)return x}catch(e){}
+ return {records:seedData,staff:{},config:defaultConfig};
+}
+function persist(){localStorage.setItem(KEY,JSON.stringify(db));}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
+function today(){return new Date().toISOString().slice(0,10)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function reportCode(){return [group1Select.value,group2Select.value,group3Select.value].find(Boolean)||'bc_1_2'}
+function deadlineFor(wh,rt){return db.config.deadline[wh]||'10:00'}
+function statusFor(r){
+ const dl=deadlineFor(r.warehouse,r.reportType);
+ const sent=new Date(r.submittedAt);
+ const d=new Date(r.date+'T'+dl);
+ const grace=Number(db.config.grace[r.warehouse]??15);
+ if(sent.getTime()<=d.getTime()+grace*60000)return 'Đạt KPI';
+ return 'Trễ KPI';
+}
+function switchTab(id,btn){
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+ if(id==='downloadTab')filterDownloadData();if(id==='viewTab')renderDashboard();
+}
+function switchSubTab(id,btn){
+ document.querySelectorAll('#viewTab > div[id^="sub"]').forEach(x=>x.style.display='none');
+ document.getElementById(id).style.display='block';document.querySelectorAll('.subtab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+}
+function openStaffModal(){loadWarehouseDay();document.getElementById('staffModal').classList.add('show')}
+function closeStaffModal(){document.getElementById('staffModal').classList.remove('show')}
+function loadWarehouseDay(){
+ const wh=warehouseSelect.value, date=checkDate.value, s=db.staff[wh+'_'+date]||{ba:0,van:0,wa:0,leave:'',anomaly:'Không có bất thường'};
+ inputBA.value=s.ba;inputVAN.value=s.van;inputWA.value=s.wa;inputLeaveStaff.value=s.leave;inputAnomaly.value=s.anomaly;
+ headcountSummaryDisplay.innerHTML=`👥 NS ${wh}: BA(${s.ba}) | VAN(${s.van}) | WA(${s.wa})`;
+ anomalyDisplay.innerHTML=`⚠️ Bất thường: ${esc(s.anomaly||'Không có')}`;
+ tooltipSGN03.textContent=`Kho SGN03S: ${db.staff['SGN03S_'+date]?.anomaly||'Không có bất thường'}`;
+}
+function saveStaffInfo(){
+ const wh=warehouseSelect.value,date=checkDate.value;
+ db.staff[wh+'_'+date]={ba:+inputBA.value||0,van:+inputVAN.value||0,wa:+inputWA.value||0,leave:inputLeaveStaff.value,anomaly:inputAnomaly.value};
+ persist();loadWarehouseDay();closeStaffModal();toast('✓ Đã lưu thông tin nhân sự & bất thường');
+}
+function clearPaste(){pastedText.value=''}
+function submitReportData(){
+ const text=pastedText.value.trim();if(!text){toast('⚠️ Vui lòng dán dữ liệu báo cáo');return}
+ const wh=warehouseSelect.value, date=checkDate.value, emp=inputEmp.value.trim()||'Admin_Kho', rt=reportCode();
+ const rows=text.split(/\r?\n/).filter(Boolean).map((line,i)=>line.split(/\t|,/).map(x=>x.trim()));
+ const now=new Date();const iso=now.toISOString().slice(0,16);
+ rows.forEach((a,i)=>{
+   db.records.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+i),date,warehouse:wh,emp,reportType:rt,col1:a[0]||'',col2:a[1]||'',col3:a[2]||'',status:a[3]||'Hoàn thành',submittedAt:iso,adjustments:[]});
+ });
+ persist();pastedText.value='';inputReportId.value=rt.toUpperCase();renderPerformance();renderDashboard();toast(`🚀 Đã lưu ${rows.length} dòng dữ liệu`);
+}
+function renderPerformance(){
+ const rows=db.records.slice().sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt)).slice(0,100);
+ performanceTable.querySelector('tbody').innerHTML=rows.length?rows.map(r=>{
+  const st=statusFor(r);const cls=st==='Đạt KPI'?'on':'late';
+  return `<tr><td>${esc(r.reportType)}</td><td>${esc(r.date)}</td><td>${esc(r.warehouse)}</td><td>${esc(r.emp)}</td><td>${esc(deadlineFor(r.warehouse,r.reportType))}</td><td>${esc(new Date(r.submittedAt).toLocaleString('vi-VN'))}</td><td><span class="status ${cls}">${st}</span></td><td><button class="btn orange" onclick="requestResubmit('${r.id}')">⚠️ Xin chỉnh sửa</button></td></tr>`;
+ }).join(''):'<tr><td colspan="8" class="empty">Chưa có dữ liệu</td></tr>';
+}
+function requestResubmit(id){
+ const r=db.records.find(x=>x.id===id);if(!r)return;
+ const reason=prompt(`Nhập lý do xin chỉnh sửa (giới hạn ${db.config.maxAdjustMinutes} phút từ lúc gửi):`);if(!reason)return;
+ const elapsed=Math.max(0,Math.round((Date.now()-new Date(r.submittedAt).getTime())/60000));
+ const within=elapsed<=db.config.maxAdjustMinutes;
+ r.adjustments=r.adjustments||[];r.adjustments.push({reason,requestedAt:new Date().toISOString(),elapsed,within});
+ if(!within)r.status='Chỉnh sửa quá hạn';
+ persist();renderPerformance();renderDashboard();
+ toast(within?`✓ Đã điều chỉnh trong ${elapsed} phút - Đạt KPI`:`❌ Chỉnh sửa sau ${elapsed} phút - Trừ KPI`);
+}
+function getFilteredDownload(){
+ const wh=dlWarehouse.value,emp=dlEmpId.value.trim().toLowerCase(),rt=dlReportType.value,from=dlFromDate.value,to=dlToDate.value,kw=dlKeyword.value.trim().toLowerCase();
+ return db.records.filter(r=>(wh==='ALL'||r.warehouse===wh)&&(!emp||r.emp.toLowerCase().includes(emp))&&(rt==='ALL'||r.reportType===rt)&&(!from||r.date>=from)&&(!to||r.date<=to)&&(!kw||Object.values(r).join(' ').toLowerCase().includes(kw)));
+}
+function filterDownloadData(){
+ const rows=getFilteredDownload();previewCount.textContent=rows.length;
+ dlResultTable.querySelector('tbody').innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.warehouse)}</td><td>${esc(r.emp)}</td><td>${esc(r.reportType)}</td><td>${esc(r.col1)}</td><td>${esc(r.col2)}</td><td>${esc(r.col3)}</td><td>${esc(r.status)}</td><td>${esc(new Date(r.submittedAt).toLocaleString('vi-VN'))}</td></tr>`).join(''):'<tr><td colspan="9" class="empty">Không tìm thấy dữ liệu phù hợp</td></tr>';
+ return rows;
+}
+function exportToExcel(){
+ const rows=getFilteredDownload();if(!rows.length){toast('Không có dữ liệu để xuất');return}
+ if(typeof XLSX==='undefined'){toast('Không tải được thư viện Excel. Hãy kiểm tra Internet.');return}
+ const data=[['Ngày','Kho','Nhân viên','Mã BC','Cột 1','Cột 2','Cột 3','Trạng thái','Giờ gửi'],...rows.map(r=>[r.date,r.warehouse,r.emp,r.reportType,r.col1,r.col2,r.col3,r.status,r.submittedAt])];
+ const ws=XLSX.utils.aoa_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Data_Report');
+ XLSX.writeFile(wb,`SF_Report_Export_${today()}.xlsx`);toast('✓ Đã xuất Excel');
+}
+function exportCSV(){
+ const rows=getFilteredDownload();if(!rows.length){toast('Không có dữ liệu để xuất');return}
+ const head=['Ngày','Kho','Nhân viên','Mã BC','Cột 1','Cột 2','Cột 3','Trạng thái','Giờ gửi'];
+ const csv=[head,...rows.map(r=>[r.date,r.warehouse,r.emp,r.reportType,r.col1,r.col2,r.col3,r.status,r.submittedAt])].map(a=>a.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+ const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`SF_Report_${today()}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+function rangeDates(){
+ const t=new Date(), y=t.getFullYear(),m=t.getMonth(),d=t.getDate(), type=rptTimeRange.value;
+ let start=new Date(y,m,d),end=new Date(y,m,d);
+ if(type==='WEEK'){const day=t.getDay()||7;start=new Date(y,m,d-day+1)}
+ if(type==='MONTH'||type==='MTD')start=new Date(y,m,1);
+ if(type==='YTD')start=new Date(y,0,1);
+ if(type==='QUARTER'){const q=Number(rptQuarter.value.slice(1));start=new Date(y,(q-1)*3,1);end=new Date(y,q*3,0)}
+ return [start.toISOString().slice(0,10),end.toISOString().slice(0,10)];
+}
+function renderDashboard(){
+ const [from,to]=rangeDates(),wh=rptWarehouse.value;
+ const rows=db.records.filter(r=>(wh==='ALL'||r.warehouse===wh)&&r.date>=from&&r.date<=to);
+ const kpiRows=rows.length, warehouses=new Set(rows.map(r=>r.warehouse)),qty=rows.reduce((s,r)=>s+(Number(String(r.col3).replace(/,/g,''))||0),0),good=rows.filter(r=>statusFor(r)==='Đạt KPI').length;
+ const lateAdj=rows.reduce((s,r)=>s+(r.adjustments||[]).filter(a=>!a.within).length,0);
+ kpiTotalRows.textContent=kpiRows.toLocaleString('vi-VN');kpiWhSubmitted.textContent=`${warehouses.size} / 4`;kpiSuccess.textContent=(kpiRows?good/kpiRows*100:0).toFixed(1)+'%';kpiQty.textContent=qty.toLocaleString('vi-VN');kpiLateAdjust.textContent=lateAdj;
+ const whs=['SGN01S','SGN02S','SGN03S','SGN04S'],stats=whs.map(w=>{const a=rows.filter(r=>r.warehouse===w);const q=a.reduce((s,r)=>s+(Number(String(r.col3).replace(/,/g,''))||0),0);const g=a.filter(r=>statusFor(r)==='Đạt KPI').length;return{w,n:a.length,q,k:a.length?g/a.length*100:0}});
+ const max=Math.max(1,...stats.map(x=>x.q));
+ warehouseChart.innerHTML=stats.map(x=>`<div class="bar" style="height:${Math.max(5,x.q/max*190)}px"><b>${x.q.toLocaleString('vi-VN')}</b><small>${x.w}</small></div>`).join('');
+ warehouseKpiBody.innerHTML=stats.map(x=>`<tr><td><b>${x.w}</b></td><td>${x.n}</td><td>${x.q.toLocaleString('vi-VN')}</td><td>${x.k.toFixed(1)}%</td><td><span class="status ${x.k>=95?'on':'late'}">${x.k.toFixed(1)}%</span></td></tr>`).join('');
+}
+function saveConfig(){
+ const wh=cfgWarehouse.value;db.config.deadline[wh]=cfgDeadline.value;db.config.grace[wh]=+cfgGrace.value||0;db.config.maxAdjustMinutes=+cfgMaxAdjustMinutes.value||60;db.config.penalty=+cfgPenalty.value||0;db.config.approval=cfgApproval.value;persist();renderPerformance();renderDashboard();toast('✓ Đã lưu cấu hình KPI & Leadtime');
+}
+function resetConfig(){db.config=JSON.parse(JSON.stringify(defaultConfig));persist();loadConfigForm();renderPerformance();renderDashboard();toast('↩️ Đã khôi phục mặc định')}
+function loadConfigForm(){cfgMaxAdjustMinutes.value=db.config.maxAdjustMinutes;cfgPenalty.value=db.config.penalty;cfgApproval.value=db.config.approval;cfgDeadline.value=db.config.deadline[cfgWarehouse.value]||'10:00';cfgGrace.value=db.config.grace[cfgWarehouse.value]??15}
+cfgWarehouse.addEventListener('change',loadConfigForm);
+document.getElementById('inputReportId').value=reportCode().toUpperCase();
+[group1Select,group2Select,group3Select].forEach(x=>x.addEventListener('change',()=>inputReportId.value=reportCode().toUpperCase()));
+
+(function init(){
+ checkDate.value=today();dlFromDate.value=today().slice(0,8)+'01';dlToDate.value=today();
+ loadConfigForm();loadWarehouseDay();renderPerformance();filterDownloadData();renderDashboard();
+})();
+</script>
+</body>
+</html>
