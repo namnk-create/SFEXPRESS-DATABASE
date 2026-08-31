@@ -537,6 +537,27 @@
             display: none;
         }
 
+        /* column name display */
+        .col-names {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #0f172a;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin-bottom: 10px;
+        }
+        .col-names span {
+            background: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+        }
+
         @media(max-width:900px) {
             body {
                 padding: 6px;
@@ -716,6 +737,17 @@
 
                 <div class="section">
                     <h3 class="section-title">📥 NHẬP DATA &nbsp; <span style="font-weight:400;font-size:13px;color:var(--muted);">Mã báo cáo: <b id="inputReportIdDisplay">BC.1.2</b></span></h3>
+
+                    <!-- Column names display -->
+                    <div id="colNamesDisplay" class="col-names">
+                        <span>Cột 1: STT</span>
+                        <span>Cột 2: Ngày (dd-mmm-yy)</span>
+                        <span>Cột 3: Mã VĐ (SFxx)</span>
+                        <span>Cột 4: ID NV PU</span>
+                        <span>Cột 5: Giờ nhập</span>
+                        <span>Cột 6: CP Detain</span>
+                    </div>
+
                     <div class="field" style="margin-top:6px;">
                         <label>Dán dữ liệu báo cáo từ Excel (Ctrl+V) — có thể click vào ô để sửa tay</label>
                         <textarea id="pastedText" placeholder="Ví dụ:&#10;STT	Ngày (dd-mmm-yy)	Mã Vận Đơn (SFxxx)	ID NV	Giờ PU/ giờ Detain (hh:mm)	Detain CP (07,120..)&#10;1	01-Sep-26	SF100293841	NV001	09:30	120"></textarea>
@@ -812,12 +844,18 @@
             <div class="modal-card">
                 <h3 style="margin:0 0 14px">✏️ CẬP NHẬT NHÂN SỰ &amp; BẤT THƯỜNG KHO</h3>
                 <div class="grid grid-3">
-                    <div class="field"><label>BA</label><input type="number" id="inputBA" min="0"></div>
-                    <div class="field"><label>VAN</label><input type="number" id="inputVAN" min="0"></div>
-                    <div class="field"><label>WA</label><input type="number" id="inputWA" min="0"></div>
+                    <div class="field"><label>Số NV BA đi làm</label><input type="number" id="inputBA" min="0"></div>
+                    <div class="field"><label>Số NV VAN đi làm</label><input type="number" id="inputVAN" min="0"></div>
+                    <div class="field"><label>Số NV WA đi làm</label><input type="number" id="inputWA" min="0"></div>
                 </div>
-                <div class="field" style="margin-top:10px"><label>Nhân viên nghỉ phép</label><input id="inputLeaveStaff"></div>
-                <div class="field" style="margin-top:10px"><label>Bất thường trong ngày</label><textarea id="inputAnomaly"></textarea></div>
+                <div class="field" style="margin-top:10px">
+                    <label>Nghỉ phép (mỗi dòng: Tên, Vị trí (BA/VAN/WA), Nghỉ (1/1/2), Loại (có phép/không phép))</label>
+                    <textarea id="inputLeaveStaff" rows="3" placeholder="VD:&#10;Nguyễn Văn A, BA, 1, có phép&#10;Trần Thị B, VAN, 1/2, không phép"></textarea>
+                </div>
+                <div class="field" style="margin-top:10px">
+                    <label>Bất thường trong ngày</label>
+                    <textarea id="inputAnomaly" placeholder="Xe shuttle về trễ 20 phút, một kiện hàng SZX đi nhầm cảng PVG không giữ được, BA_ABC gặp mưa lớn nên hàng SFxxx bị ướt...."></textarea>
+                </div>
                 <div class="actions" style="justify-content:flex-end"><button class="btn light" onclick="closeStaffModal()">Hủy</button><button class="btn red" onclick="saveStaffInfo()">💾 Lưu</button></div>
             </div>
         </div>
@@ -919,6 +957,26 @@
                 return map[code] || 'STT\tCột 1\tCột 2\tCột 3\tCột 4\tCột 5';
             }
 
+            // ==================== COLUMN NAMES ====================
+            const COLUMN_NAMES = {
+                'bc_1_1': ['STT', 'Ngày (dd-mmm-yy)', 'Mã VĐ (SFxx)', 'ID NV PU', 'Giờ nhập', 'CP Detain'],
+                'bc_1_2': ['STT', 'Mã SP', 'Tên SP', 'Số lượng', 'Đơn vị', 'Ghi chú'],
+                'bc_1_3': ['STT', 'Mã NV', 'Tên NV', 'Ca làm', 'Số giờ', 'Ghi chú'],
+                'bc_2_1': ['STT', 'Ngày (dd-mmm-yy)', 'Mã VĐ (SFxx)', 'ID NV nhập', 'Giờ nhập', 'CP Detain'],
+                'bc_2_2': ['STT', 'Mã SP', 'Tên SP', 'Số lượng', 'Đơn vị', 'Ghi chú'],
+                'bc_3_1': ['STT', 'Biển số', 'Tuyến', 'Giờ xuất', 'Giờ nhập', 'Ghi chú']
+            };
+
+            function updateColumnNames() {
+                const code = reportCode();
+                const names = COLUMN_NAMES[code] || ['Cột 1', 'Cột 2', 'Cột 3', 'Cột 4', 'Cột 5', 'Cột 6'];
+                const container = document.getElementById('colNamesDisplay');
+                container.innerHTML = names.map((n, i) => `<span>Cột ${i+1}: ${n}</span>`).join('');
+                // Update placeholder too
+                updatePlaceholder();
+                updateReportIdDisplay();
+            }
+
             // ==================== LOGIN ====================
             function doLogin() {
                 const user = document.getElementById('loginUser').value.trim();
@@ -978,23 +1036,17 @@
                 document.getElementById('loginOverlay').classList.add('hidden');
                 document.getElementById('mainApp').style.display = 'block';
                 document.getElementById('displayUser').textContent = currentUser.isAdmin ? 'ADMIN' : currentUser.username;
-                // Populate warehouse dropdowns based on role
                 populateWarehouseSelects();
-                // Show/hide badges
                 updateBadges();
-                // Set default date
                 document.getElementById('checkDate').value = today();
                 document.getElementById('dlFromDate').value = today().slice(0, 8) + '01';
                 document.getElementById('dlToDate').value = today();
-                // Init
                 loadConfigForm();
                 loadWarehouseDay();
                 renderPerformance();
                 filterDownloadData();
                 renderDashboard();
-                // Update placeholder
-                updatePlaceholder();
-                updateReportIdDisplay();
+                updateColumnNames();
             }
 
             function populateWarehouseSelects() {
@@ -1024,7 +1076,6 @@
                         sel.value = whs[0];
                     }
                 });
-                // For download and report, if not admin, default to their warehouse
                 if (!currentUser.isAdmin) {
                     document.getElementById('dlWarehouse').value = currentUser.warehouse;
                     document.getElementById('rptWarehouse').value = currentUser.warehouse;
@@ -1045,7 +1096,7 @@
                 });
             }
 
-            // ==================== REPORT TYPE MUTUAL EXCLUSION ====================
+            // ==================== REPORT TYPE CHANGE ====================
             function onReportTypeChange(changedId) {
                 const ids = ['group1Select', 'group2Select', 'group3Select'];
                 const changed = document.getElementById(changedId);
@@ -1055,12 +1106,7 @@
                         document.getElementById(id).value = '';
                     }
                 });
-                // If the changed one was cleared, check if any other has value
-                if (!val) {
-                    // Nothing selected, just update
-                }
-                updatePlaceholder();
-                updateReportIdDisplay();
+                updateColumnNames();
                 document.getElementById('inputReportIdDisplay').textContent = reportDisplayName(reportCode());
             }
 
@@ -1110,8 +1156,8 @@
                 document.getElementById('inputBA').value = s.ba;
                 document.getElementById('inputVAN').value = s.van;
                 document.getElementById('inputWA').value = s.wa;
-                document.getElementById('inputLeaveStaff').value = s.leave;
-                document.getElementById('inputAnomaly').value = s.anomaly;
+                document.getElementById('inputLeaveStaff').value = s.leave || '';
+                document.getElementById('inputAnomaly').value = s.anomaly || '';
                 document.getElementById('headcountSummaryDisplay').innerHTML =
                     `👥 NS ${wh}: BA(${s.ba}) | VAN(${s.van}) | WA(${s.wa})`;
                 document.getElementById('anomalyDisplay').innerHTML = `⚠️ Bất thường: ${esc(s.anomaly||'Không có')}`;
@@ -1154,7 +1200,6 @@
                 const now = new Date();
                 const iso = now.toISOString().slice(0, 16);
                 rows.forEach((a, i) => {
-                    // Pad columns to 6
                     while (a.length < 6) a.push('');
                     db.records.push({
                         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + i + Math.random()),
@@ -1385,25 +1430,19 @@
 
             // ==================== ENTER KEY FOR LOGIN ====================
             document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter')
-                document.getElementById('loginPass').focus(); });
+                    document.getElementById('loginPass').focus(); });
             document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
             // ==================== AUTO INIT ====================
             (function init() {
-                // Show login by default, hide app
                 document.getElementById('mainApp').style.display = 'none';
                 document.getElementById('loginOverlay').classList.remove('hidden');
-                // Set default date for login
                 document.getElementById('loginUser').focus();
-                // Pre-populate report placeholder
                 updatePlaceholder();
                 updateReportIdDisplay();
+                // Set default column names
+                updateColumnNames();
             })();
-
-            // Override report type change to also clear other selects
-            document.addEventListener('DOMContentLoaded', function() {
-                // Additional init if needed
-            });
         </script>
-    </body>
-    </html>
+</body>
+</html>
