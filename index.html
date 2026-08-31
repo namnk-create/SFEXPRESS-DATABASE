@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ thống Upload Báo Cáo Excel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    h2 { text-align: center; color: #333; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+    select, input[type="file"], button {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #0288d1;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover { background-color: #0277bd; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .success { color: #2e7d32; }
+    .error { color: #c62828; }
+  </style>
+</head>
+<body>
+
+  <h2>UPLOAD BÁO CÁO CUỐI NGÀY</h2>
+
+  <!-- 1. Chọn loại báo cáo -->
+  <div class="form-group">
+    <label for="reportType">Loại Báo Cáo:</label>
+    <select id="reportType">
+      <option value="bao-cao-xuat">1. Báo cáo sản lượng hàng xuất</option>
+      <option value="bao-cao-ton">2. Báo cáo sản lượng hàng tồn</option>
+      <option value="bao-cao-nang-suat">3. Báo cáo năng suất</option>
+    </select>
+  </div>
+
+  <!-- 2. Nhập tên người báo cáo (Để biết file của ai) -->
+  <div class="form-group">
+    <label for="uploaderName">Họ và Tên Nhân Viên:</label>
+    <input type="text" id="uploaderName" placeholder="Ví dụ: Nguyen Van A">
+  </div>
+
+  <!-- 3. Chọn File Excel -->
+  <div class="form-group">
+    <label for="excelFile">Chọn File Excel (.xlsx, .xls):</label>
+    <input type="file" id="excelFile" accept=".xlsx, .xls">
+  </div>
+
+  <!-- 4. Nút Upload -->
+  <button id="uploadBtn">TẢI FILE LÊN FIREBASE</button>
+
+  <!-- Thông báo trạng thái -->
+  <div id="status"></div>
+
+  <!-- CẤU HÌNH VÀ XỬ LÝ FIREBASE -->
+  <script type="module">
+    // Import các hàm cần thiết từ Firebase SDK v10
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+    // =========================================================================
+    // THAY THẾ CÁC THÔNG TIN BÊN DƯỚI BẰNG FIREBASE CONFIG CỦA DỰ ÁN BẠN
+    // (Lấy trong phần Project Settings trên Firebase Console)
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Khởi tạo Firebase App và Storage
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
+
+    // Xử lý sự kiện bấm nút Upload
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const reportType = document.getElementById('reportType').value;
+      const uploaderName = document.getElementById('uploaderName').value.trim();
+      const fileInput = document.getElementById('excelFile');
+      const statusDiv = document.getElementById('status');
+      const uploadBtn = document.getElementById('uploadBtn');
+
+      // Kiểm tra dữ liệu đầu vào
+      if (!uploaderName) {
+        alert("Vui lòng nhập họ và tên nhân viên!");
+        return;
+      }
+      if (fileInput.files.length === 0) {
+        alert("Vui lòng chọn 1 file Excel!");
+        return;
+      }
+
+      const file = fileInput.files[0];
+
+      // Đổi tên file chuẩn hóa: [Tên_Báo_Cáo]_[Ngày_Upload]_[Tên_NV]_[Tên_File_Gốc]
+      const today = new Date().toISOString().split('T')[0]; // Định dạng YYYY-MM-DD
+      const cleanUploaderName = uploaderName.replace(/[^a-zA-Z0-9]/g, "_"); // Xóa ký tự đặc biệt
+      const fileName = `${today}_${cleanUploaderName}_${file.name}`;
+
+      // Đường dẫn lưu file trên Firebase Storage (phân thư mục theo Loại Báo Cáo)
+      // Ví dụ: bao-cao-xuat/2026-08-31_Nguyen_Van_A_Sản_Lượng.xlsx
+      const storageRef = ref(storage, `${reportType}/${fileName}`);
+
+      // Bắt đầu upload
+      try {
+        uploadBtn.disabled = true;
+        statusDiv.className = "";
+        statusDiv.innerText = "Đang tải file lên, vui lòng chờ...";
+
+        await uploadBytes(storageRef, file);
+
+        statusDiv.className = "success";
+        statusDiv.innerText = "✓ Tải file thành công!";
+        
+        // Reset form chọn file
+        fileInput.value = "";
+      } catch (error) {
+        console.error("Lỗi Upload:", error);
+        statusDiv.className = "error";
+        statusDiv.innerText = "❌ Tải file thất bại: " + error.message;
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
