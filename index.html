@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Lý Check-in & Performance Kho</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg-slate: #f8fafc;
+      --border-color: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+    body { padding: 20px; background-color: #f1f5f9; }
+
+    /* --- THANH TÓM TẮT TRÊN 1 DÒNG (HEADER BAR) --- */
+    .dashboard-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      flex-wrap: wrap;
+    }
+
+    .group-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .warehouse-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--primary);
+    }
+
+    /* Badge 4 kho màu */
+    .status-icons {
+      display: flex;
+      gap: 6px;
+      padding-left: 12px;
+      border-left: 2px solid var(--border-color);
+    }
+
+    .status-badge {
+      position: relative;
+      width: 32px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .status-badge:hover { transform: scale(1.08); }
+    .bg-green { background-color: var(--success); }
+    .bg-red   { background-color: var(--danger); }
+
+    /* Tooltip Nhân sự khi hover vào kho */
+    .status-badge .tooltip {
+      visibility: hidden;
+      width: 220px;
+      background-color: #0f172a;
+      color: #fff;
+      text-align: left;
+      border-radius: 6px;
+      padding: 8px 10px;
+      position: absolute;
+      z-index: 10;
+      top: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: normal;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .status-badge:hover .tooltip { visibility: visible; opacity: 1; }
+
+    /* Thông tin nhân sự tổng quát */
+    .headcount-summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f1f5f9;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .badge-leave {
+      background-color: #fee2e2;
+      color: #991b1b;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* Ghi chú bất thường trong ngày */
+    .anomaly-note {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #b45309;
+      background: #fef3c7;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid #fde68a;
+    }
+
+    /* Groups Bên phải */
+    .group-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .date-picker {
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      outline: none;
+    }
+
+    /* --- KHU VỰC BÁO CÁO & LEADTIME PERFORMANCE --- */
+    .details-section {
+      margin-top: 16px;
+      background: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; border: 1px solid #e2e8f0; text-align: left; }
+    th { background-color: #f8fafc; color: #475569; font-weight: 600; }
+
+    .status-tag {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .tag-on-time { background: #dcfce7; color: #166534; }
+    .tag-late { background: #fee2e2; color: #991b1b; }
+    .tag-adjusted { background: #fef3c7; color: #92400e; }
+
+    .btn-config {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- THANH QUẢN LÝ TÓM TẮT (1 DÒNG) -->
+  <div class="dashboard-bar">
+    <div class="group-left">
+      <!-- Icon & Tên Kho Tổng -->
+      <div class="warehouse-title">
+        <span>📅</span>
+        <span>HỆ THỐNG KHO CÔNG TY</span>
+      </div>
+
+      <!-- 4 Icon Kho Màu (Rút gọn) + Tooltip Chi Tiết Nhân Sự -->
+      <div class="status-icons">
+        <div class="status-badge bg-green">
+          K1
+          <div class="tooltip">
+            <strong>Kho 1 (Đã Check-in)</strong><br>
+            • BA: 2/2 | VAN: 4/4 | WA: 3/3<br>
+            • Đi làm: 100% (Không ai nghỉ)
+          </div>
+        </div>
+
+        <div class="status-badge bg-green">
+          K2
+          <div class="tooltip">
+            <strong>Kho 2 (Đã Check-in)</strong><br>
+            • BA: 1/1 | VAN: 3/3 | WA: 2/2<br>
+            • Đi làm: 100%
+          </div>
+        </div>
+
+        <div class="status-badge bg-red">
+          K3
+          <div class="tooltip">
+            <strong>Kho 3 (Chưa xong)</strong><br>
+            • BA: 1/1 | VAN: 2/3 <span class="badge-leave">(1 nghỉ phép)</span> | WA: 2/2<br>
+            • Vắng: Nguyễn Văn A (VAN - Nghỉ phép)
+          </div>
+        </div>
+
+        <div class="status-badge bg-green">
+          K4
+          <div class="tooltip">
+            <strong>Kho 4 (Đã Check-in)</strong><br>
+            • BA: 1/1 | VAN: 5/5 | WA: 4/4<br>
+            • Đi làm: 100%
+          </div>
+        </div>
+      </div>
+
+      <!-- Tổng Nhân Sự Toàn Hệ Thống -->
+      <div class="headcount-summary">
+        <span>👥 Nhân sự: BA (5) | VAN (14) | WA (11)</span>
+        <span class="badge-leave">1 Nghỉ phép (K3)</span>
+      </div>
+
+      <!-- Ghi Chú Bất Thường Trong Ngày -->
+      <div class="anomaly-note" title="Bất thường ghi nhận trong ngày">
+        <span>⚠️ <strong>Bất thường:</strong> Mất điện Kho 3 (10h-11h); Xe cont về trễ 2h ở K1.</span>
+      </div>
+    </div>
+
+    <!-- Ô Chọn Ngày Bên Phải -->
+    <div class="group-right">
+      <label for="checkin-date" style="font-size: 13px; font-weight: 600;">Ngày kiểm tra:</label>
+      <input type="date" id="checkin-date" class="date-picker" value="2026-08-31">
+    </div>
+  </div>
+
+  <!-- BẢNG BÁO CÁO & QUẢN LÝ LEADTIME/PERFORMANCE -->
+  <div class="details-section">
+    <div class="section-title">
+      <span>📊 THEO DÕI GIỜ GIẤC NHẬP BÁO CÁO & PERFORMANCE</span>
+      <button class="btn-config" onclick="alert('Mở Popup Admin Setup Leadtime chuẩn cho từng kho!')">⚙️ Admin Setup Leadtime</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Kho</th>
+          <th>Loại Báo Cáo</th>
+          <th>Nhân Viên Nhập</th>
+          <th>Leadtime Cho Phép (Quy định)</th>
+          <th>Giờ Gửi Thực Tế</th>
+          <th>Điều Chỉnh / Báo Lỗi</th>
+          <th>Trạng Thái Performance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Kho 1</strong></td>
+          <td>Báo cáo Nhập Hàng (Inbound)</td>
+          <td>Nguyễn Văn B (VAN)</td>
+          <td>Trước 10:00 AM (Max 30 phút)</td>
+          <td>09:45 AM</td>
+          <td>Không</td>
+          <td><span class="status-tag tag-on-time">Đạt (100%)</span></td>
+        </tr>
+        <tr>
+          <td><strong>Kho 2</strong></td>
+          <td>Báo cáo Xuất Hàng (Outbound)</td>
+          <td>Trần Thị C (WA)</td>
+          <td>Trước 11:30 AM (Max 45 phút)</td>
+          <td>11:50 AM</td>
+          <td>Không</td>
+          <td><span class="status-tag tag-late">Trễ 20 phút (-10% KPI)</span></td>
+        </tr>
+        <tr>
+          <td><strong>Kho 3</strong></td>
+          <td>Báo cáo Tồn Kho (Inventory)</td>
+          <td>Lê Văn D (BA)</td>
+          <td>Trước 02:00 PM (Max 60 phút)</td>
+          <td>01:30 PM</td>
+          <td><strong style="color: var(--danger);">Có (Nhập sai SL $\rightarrow$ Fix lại)</strong></td>
+          <td><span class="status-tag tag-adjusted">Nhập sai dữ liệu (-15% KPI)</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</body>
+</html>
