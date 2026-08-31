@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
     </script>
     <style>
+        /* ... (giữ nguyên CSS như trước) ... */
         :root {
             --sf-red: #DC001B;
             --sf-black: #1E1E1E;
@@ -112,6 +113,7 @@
             background: #eaecee;
             font-weight: 800;
             color: #475569;
+            transition: background 0.2s;
         }
         .tab.active:nth-child(1) {
             background: var(--sf-red);
@@ -124,6 +126,9 @@
         .tab.active:nth-child(3) {
             background: var(--sf-green);
             color: #fff;
+        }
+        .tab.hidden-tab {
+            display: none;
         }
         .page {
             display: none;
@@ -185,6 +190,10 @@
             font-weight: 800;
             color: #fff;
             background: #334155;
+            transition: opacity 0.2s;
+        }
+        .btn:hover {
+            opacity: 0.85;
         }
         .btn.red {
             background: var(--sf-red);
@@ -383,6 +392,9 @@
             background: var(--sf-green);
             color: #fff;
         }
+        .subtab.hidden-subtab {
+            display: none;
+        }
         .notice {
             padding: 9px 11px;
             border-radius: 6px;
@@ -558,6 +570,22 @@
             border: 1px solid #d1d5db;
         }
 
+        /* Admin setup – report type management */
+        .report-type-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        .report-type-item input {
+            flex: 1 1 150px;
+        }
+        .report-type-item .col-input {
+            flex: 1 1 100px;
+            min-width: 80px;
+        }
+
         @media(max-width:900px) {
             body {
                 padding: 6px;
@@ -659,7 +687,7 @@
             <div class="sub">SFEXPRESS Warehouse System</div>
             <div class="field">
                 <label>Tài khoản</label>
-                <input id="loginUser" placeholder="VD: WA01S_12345 hoặc ADMIN" autofocus>
+                <input id="loginUser" placeholder="VD: WA01S_12345 hoặc ADMIN / ADMIN2" autofocus>
             </div>
             <div class="field">
                 <label>Mật khẩu</label>
@@ -667,7 +695,9 @@
             </div>
             <button class="btn red" onclick="doLogin()">🔑 Đăng nhập</button>
             <div id="loginError" class="login-error">⚠️ Sai tài khoản hoặc mật khẩu. Vui lòng thử lại.</div>
-            <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center;">WA*S_* mật khẩu: 12345 &nbsp;·&nbsp; ADMIN: 54321</div>
+            <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center;">
+                WA*S_* mật khẩu: 12345 &nbsp;·&nbsp; ADMIN: 54321 &nbsp;·&nbsp; ADMIN2: 67890
+            </div>
         </div>
     </div>
 
@@ -678,12 +708,12 @@
                 <div class="sf-logo-wrap"><img class="sf-logo" src="data:image/png;base64,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" alt="SF Express"></div>
                 <div class="title">HỆ THỐNG QUẢN LÝ KHO HÀNG &amp; PERFORMANCE TỔNG HỢP</div>
             </div>
-            <div class="account">👤 <span id="displayUser">Admin_Kho</span> &nbsp;·&nbsp; <button class="btn light" style="padding:4px 10px;font-size:11px;" onclick="doLogout()">Đăng xuất</button></div>
+            <div class="account">👤 <span id="displayUser">Admin</span> &nbsp;·&nbsp; <span id="displayRole"></span> &nbsp;·&nbsp; <button class="btn light" style="padding:4px 10px;font-size:11px;" onclick="doLogout()">Đăng xuất</button></div>
         </header>
 
-        <nav class="tabs">
+        <nav class="tabs" id="mainTabs">
             <button class="tab active" onclick="switchTab('uploadTab',this)">📌 1. UPLOAD DATA</button>
-            <button class="tab" onclick="switchTab('downloadTab',this)">📥 2. DOWNLOAD DATA</button>
+            <button class="tab" id="downloadTabBtn" onclick="switchTab('downloadTab',this)">📥 2. DOWNLOAD DATA</button>
             <button class="tab" onclick="switchTab('viewTab',this)">📊 3. VIEW REPORT</button>
         </nav>
 
@@ -714,29 +744,24 @@
                         <div class="report-box blue-border"><b>🔵 1. Hàng xuất (PU)</b>
                             <select id="group1Select" onchange="onReportTypeChange('group1Select')">
                                 <option value="">-- Chọn --</option>
-                                <option value="bc_1_1">1.1. BC SL hàng xuất (PU)</option>
-                                <option value="bc_1_2">1.2. BC SL xuất tồn (PU)</option>
-                                <option value="bc_1_3">1.3. BC NS khai thác kho (PU)</option>
+                                <!-- populated from config -->
                             </select>
                         </div>
                         <div class="report-box orange-border"><b>🟠 2. Hàng nhập (DE)</b>
                             <select id="group2Select" onchange="onReportTypeChange('group2Select')">
                                 <option value="">-- Chọn --</option>
-                                <option value="bc_2_1">2.1. BC SL hàng nhập (DE)</option>
-                                <option value="bc_2_2">2.2. BC SL nhập tồn (DE)</option>
                             </select>
                         </div>
                         <div class="report-box black-border"><b>⚫ 3. Lịch trình xe</b>
                             <select id="group3Select" onchange="onReportTypeChange('group3Select')">
                                 <option value="">-- Chọn --</option>
-                                <option value="bc_3_1">3.1. BC Lịch trình xe PU</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 <div class="section">
-                    <h3 class="section-title">📥 NHẬP DATA &nbsp; <span style="font-weight:400;font-size:13px;color:var(--muted);">Mã báo cáo: <b id="inputReportIdDisplay">BC.1.2</b></span></h3>
+                    <h3 class="section-title">📥 NHẬP DATA &nbsp; <span style="font-weight:400;font-size:13px;color:var(--muted);">Mã báo cáo: <b id="inputReportIdDisplay">--</b></span></h3>
 
                     <!-- Column names display -->
                     <div id="colNamesDisplay" class="col-names">
@@ -765,23 +790,27 @@
                 </div>
             </section>
 
-            <!-- DOWNLOAD TAB -->
+            <!-- DOWNLOAD TAB (chỉ admin1 & admin2) -->
             <section id="downloadTab" class="page">
                 <div class="section">
-                    <h3 class="section-title" style="color:var(--sf-blue)">📥 TRUY XUẤT &amp; DOWNLOAD DỮ LIỆU</h3>
+                    <h3 class="section-title" style="color:var(--sf-blue)">📥 TRUY XUẤT &amp; DOWNLOAD DỮ LIỆU (ADMIN)</h3>
                     <div class="grid grid-3">
                         <div class="field"><label>Kho hàng</label><select id="dlWarehouse"><option value="ALL">ALL</option></select></div>
                         <div class="field"><label>Mã / Tên nhân viên</label><input id="dlEmpId" placeholder="VD: SF123, NV_An"></div>
-                        <div class="field"><label>Loại báo cáo</label><select id="dlReportType"><option value="ALL">ALL</option><option value="bc_1_1">1.1. BC SL hàng xuất (PU)</option><option value="bc_1_2">1.2. BC SL xuất tồn (PU)</option><option value="bc_1_3">1.3. BC NS khai thác kho (PU)</option><option value="bc_2_1">2.1. BC SL hàng nhập (DE)</option><option value="bc_2_2">2.2. BC SL nhập tồn (DE)</option><option value="bc_3_1">3.1. BC Lịch trình xe PU</option></select></div>
+                        <div class="field"><label>Loại báo cáo</label><select id="dlReportType"><option value="ALL">ALL</option></select></div>
                         <div class="field"><label>Từ ngày</label><input type="date" id="dlFromDate"></div>
                         <div class="field"><label>Đến ngày</label><input type="date" id="dlToDate"></div>
                         <div class="field"><label>Tìm toàn dòng dữ liệu</label><input id="dlKeyword" placeholder="Mã vận đơn / tuyến / trạng thái..."></div>
                     </div>
-                    <div class="actions"><button class="btn dark" onclick="filterDownloadData()">🔍 XEM DATA</button><button class="btn blue" onclick="exportToExcel()">📥 XUẤT EXCEL (.XLSX)</button><button class="btn light" onclick="exportCSV()">📄 XUẤT CSV</button></div>
+                    <div class="actions">
+                        <button class="btn dark" onclick="filterDownloadData()">🔍 XEM DATA</button>
+                        <button class="btn blue" onclick="exportToExcel()">📥 XUẤT EXCEL (.XLSX)</button>
+                        <button class="btn light" onclick="exportCSV()">📄 XUẤT CSV</button>
+                    </div>
                 </div>
                 <div class="section">
-                    <h3 class="section-title">📋 KẾT QUẢ: <span id="previewCount">0</span> dòng</h3>
-                    <div class="table-wrap"><table id="dlResultTable"><thead><tr><th>Ngày</th><th>Kho</th><th>Nhân viên</th><th>Mã BC</th><th>Cột 1</th><th>Cột 2</th><th>Cột 3</th><th>Cột 4</th><th>Cột 5</th><th>Cột 6</th><th>Trạng thái</th><th>Giờ gửi</th></tr></thead><tbody></tbody></table></div>
+                    <h3 class="section-title">📋 KẾT QUẢ: <span id="previewCount">0</span> dòng &nbsp; <span style="font-weight:400;font-size:13px;">(Admin có thể sửa dữ liệu)</span></h3>
+                    <div class="table-wrap"><table id="dlResultTable"><thead><tr><th>Ngày</th><th>Kho</th><th>Nhân viên</th><th>Mã BC</th><th>Cột 1</th><th>Cột 2</th><th>Cột 3</th><th>Cột 4</th><th>Cột 5</th><th>Cột 6</th><th>Trạng thái</th><th>Giờ gửi</th><th>Lịch sử sửa</th><th>Thao tác</th></tr></thead><tbody></tbody></table></div>
                 </div>
             </section>
 
@@ -789,7 +818,7 @@
             <section id="viewTab" class="page">
                 <div class="subtabs">
                     <button class="subtab active" onclick="switchSubTab('subViewReport',this)">📊 Báo cáo &amp; Thống kê</button>
-                    <button class="subtab" onclick="switchSubTab('subAdminKPI',this)">⚙️ Admin Setup KPI &amp; Leadtime</button>
+                    <button class="subtab" id="adminSetupSubtab" onclick="switchSubTab('subAdminKPI',this)">⚙️ Admin Setup KPI &amp; Leadtime</button>
                 </div>
                 <div id="subViewReport">
                     <div class="section">
@@ -811,24 +840,41 @@
                 </div>
 
                 <div id="subAdminKPI" style="display:none">
-                    <div class="section"><h3 class="section-title" style="color:var(--sf-red)">⚙️ THIẾT LẬP TIÊU CHUẨN KPI &amp; LEADTIME</h3>
-                        <div class="grid grid-2">
-                            <div class="section" style="margin:0;background:#f8fafc"><h4>1. Leadtime theo báo cáo</h4>
-                                <div class="grid grid-2">
-                                    <div class="field"><label>Kho</label><select id="cfgWarehouse"><option>SGN01S</option><option>SGN02S</option><option>SGN03S</option><option>SGN04S</option></select></div>
-                                    <div class="field"><label>Loại báo cáo</label><select id="cfgReportType"><option>bc_1_1</option><option selected>bc_1_2</option><option>bc_1_3</option><option>bc_2_1</option><option>bc_2_2</option><option>bc_3_1</option></select></div>
-                                    <div class="field"><label>Deadline</label><input type="time" id="cfgDeadline" value="10:00"></div>
-                                    <div class="field"><label>Trễ tối đa cho phép (phút)</label><input type="number" id="cfgGrace" value="15" min="0"></div>
-                                </div>
+                    <div class="section"><h3 class="section-title" style="color:var(--sf-red)">⚙️ THIẾT LẬP TIÊU CHUẨN KPI &amp; LEADTIME (CHỈ ADMIN2)</h3>
+                        <!-- Quản lý loại báo cáo & tên cột -->
+                        <div class="section" style="margin-bottom:12px;background:#f8fafc">
+                            <h4>📋 Quản lý loại báo cáo & tên cột</h4>
+                            <div id="reportTypeList"></div>
+                            <div class="actions" style="margin-top:8px;">
+                                <button class="btn green" onclick="addReportType()">➕ Thêm báo cáo mới</button>
+                                <button class="btn red" onclick="saveReportTypes()">💾 Lưu cấu hình báo cáo</button>
                             </div>
-                            <div class="section" style="margin:0;background:#f8fafc"><h4>2. Quy tắc Re-submit</h4>
+                            <div class="notice">Thêm mã báo cáo (vd: bc_4_1) và tên hiển thị. Mỗi báo cáo có 6 cột, bạn có thể đặt tên cột.</div>
+                        </div>
+
+                        <!-- Deadline & grace theo kho & báo cáo -->
+                        <div class="section" style="margin:0;background:#f8fafc">
+                            <h4>⏰ Thiết lập Deadline & Grace theo kho và loại báo cáo</h4>
+                            <div class="grid grid-3">
+                                <div class="field"><label>Kho</label><select id="cfgWarehouse"><option>SGN01S</option><option>SGN02S</option><option>SGN03S</option><option>SGN04S</option></select></div>
+                                <div class="field"><label>Loại báo cáo</label><select id="cfgReportType"></select></div>
+                                <div class="field"><label>Deadline (giờ)</label><input type="time" id="cfgDeadline" value="10:00"></div>
+                                <div class="field"><label>Grace (phút)</label><input type="number" id="cfgGrace" value="15" min="0"></div>
+                            </div>
+                            <div class="actions"><button class="btn red" onclick="saveDeadlineConfig()">💾 Lưu deadline</button></div>
+                            <div class="notice">Deadline và grace được lưu theo từng kho và từng loại báo cáo. Nếu chưa cấu hình, hệ thống dùng giá trị mặc định.</div>
+                        </div>
+
+                        <!-- Quy tắc Re-submit (giữ nguyên) -->
+                        <div class="section" style="margin-top:12px;background:#f8fafc"><h4>2. Quy tắc Re-submit</h4>
+                            <div class="grid grid-2">
                                 <div class="field"><label>Thời hạn xin chỉnh sửa (phút)</label><input type="number" id="cfgMaxAdjustMinutes" value="60" min="0"></div>
                                 <div class="field"><label>Mức phạt KPI khi quá hạn (%)</label><input type="number" id="cfgPenalty" value="15" min="0" max="100"></div>
                                 <div class="field"><label>Phê duyệt</label><select id="cfgApproval"><option>Tự động chấp nhận trong thời hạn</option><option>Bắt buộc Admin duyệt thủ công</option></select></div>
                             </div>
+                            <div class="actions"><button class="btn red" onclick="saveConfig()">💾 LƯU CẤU HÌNH</button><button class="btn light" onclick="resetConfig()">↩️ Khôi phục mặc định</button></div>
+                            <div class="notice">Quy tắc mặc định: xin chỉnh sửa trong ≤ 60 phút từ lúc gửi được tính “Đã điều chỉnh (Đạt KPI)”; quá thời hạn được ghi nhận là trễ và áp dụng mức phạt cấu hình.</div>
                         </div>
-                        <div class="actions"><button class="btn red" onclick="saveConfig()">💾 LƯU CẤU HÌNH</button><button class="btn light" onclick="resetConfig()">↩️ Khôi phục mặc định</button></div>
-                        <div class="notice">Quy tắc mặc định: xin chỉnh sửa trong ≤ 60 phút từ lúc gửi được tính “Đã điều chỉnh (Đạt KPI)”; quá thời hạn được ghi nhận là trễ và áp dụng mức phạt cấu hình.</div>
                     </div>
                 </div>
             </section>
@@ -860,39 +906,97 @@
             </div>
         </div>
 
+        <!-- Edit Record Modal (for admin download) -->
+        <div id="editRecordModal" class="modal">
+            <div class="modal-card">
+                <h3 style="margin:0 0 14px">✏️ CHỈNH SỬA BẢN GHI</h3>
+                <div class="grid grid-2">
+                    <div class="field"><label>Cột 1</label><input id="editCol1"></div>
+                    <div class="field"><label>Cột 2</label><input id="editCol2"></div>
+                    <div class="field"><label>Cột 3</label><input id="editCol3"></div>
+                    <div class="field"><label>Cột 4</label><input id="editCol4"></div>
+                    <div class="field"><label>Cột 5</label><input id="editCol5"></div>
+                    <div class="field"><label>Cột 6</label><input id="editCol6"></div>
+                    <div class="field" style="grid-column: span 2;"><label>Lý do chỉnh sửa</label><textarea id="editReason" placeholder="Nhập lý do thay đổi..."></textarea></div>
+                </div>
+                <div class="actions" style="justify-content:flex-end">
+                    <button class="btn light" onclick="closeEditModal()">Hủy</button>
+                    <button class="btn red" onclick="saveEditRecord()">💾 Lưu thay đổi</button>
+                </div>
+            </div>
+        </div>
+
         <!-- TOAST -->
         <div id="toast" class="toast"></div>
 
         <script>
-            // ==================== CONFIG & DB ====================
+            // ==================== GLOBALS ====================
             const KEY = 'SFEXPRESS_DB_V2';
+            const DEFAULT_REPORT_TYPES = {
+                'bc_1_1': { name: '1.1. BC SL hàng xuất (PU)', columns: ['STT', 'Ngày (dd-mmm-yy)', 'Mã VĐ (SFxx)',
+                        'ID NV PU', 'Giờ nhập', 'CP Detain'
+                    ] },
+                'bc_1_2': { name: '1.2. BC SL xuất tồn (PU)', columns: ['STT', 'Mã SP', 'Tên SP', 'Số lượng', 'Đơn vị',
+                        'Ghi chú'
+                    ] },
+                'bc_1_3': { name: '1.3. BC NS khai thác kho (PU)', columns: ['STT', 'Mã NV', 'Tên NV', 'Ca làm',
+                        'Số giờ', 'Ghi chú'
+                    ] },
+                'bc_2_1': { name: '2.1. BC SL hàng nhập (DE)', columns: ['STT', 'Ngày (dd-mmm-yy)', 'Mã VĐ (SFxx)',
+                        'ID NV nhập', 'Giờ nhập', 'CP Detain'
+                    ] },
+                'bc_2_2': { name: '2.2. BC SL nhập tồn (DE)', columns: ['STT', 'Mã SP', 'Tên SP', 'Số lượng', 'Đơn vị',
+                        'Ghi chú'
+                    ] },
+                'bc_3_1': { name: '3.1. BC Lịch trình xe PU', columns: ['STT', 'Biển số', 'Tuyến', 'Giờ xuất',
+                        'Giờ nhập', 'Ghi chú'
+                    ] }
+            };
+            const DEFAULT_DEADLINES = { // per warehouse, per reportType
+                'SGN01S': { 'bc_1_1': '10:00', 'bc_1_2': '10:00', 'bc_1_3': '10:00', 'bc_2_1': '10:00', 'bc_2_2': '10:00',
+                    'bc_3_1': '10:00' },
+                'SGN02S': { 'bc_1_1': '10:00', 'bc_1_2': '10:00', 'bc_1_3': '10:00', 'bc_2_1': '10:00', 'bc_2_2': '10:00',
+                    'bc_3_1': '10:00' },
+                'SGN03S': { 'bc_1_1': '10:00', 'bc_1_2': '10:00', 'bc_1_3': '10:00', 'bc_2_1': '10:00', 'bc_2_2': '10:00',
+                    'bc_3_1': '10:00' },
+                'SGN04S': { 'bc_1_1': '10:00', 'bc_1_2': '10:00', 'bc_1_3': '10:00', 'bc_2_1': '10:00', 'bc_2_2': '10:00',
+                    'bc_3_1': '10:00' }
+            };
+            const DEFAULT_GRACE = { // per warehouse, per reportType
+                'SGN01S': { 'bc_1_1': 15, 'bc_1_2': 15, 'bc_1_3': 15, 'bc_2_1': 15, 'bc_2_2': 15, 'bc_3_1': 15 },
+                'SGN02S': { 'bc_1_1': 15, 'bc_1_2': 15, 'bc_1_3': 15, 'bc_2_1': 15, 'bc_2_2': 15, 'bc_3_1': 15 },
+                'SGN03S': { 'bc_1_1': 15, 'bc_1_2': 15, 'bc_1_3': 15, 'bc_2_1': 15, 'bc_2_2': 15, 'bc_3_1': 15 },
+                'SGN04S': { 'bc_1_1': 15, 'bc_1_2': 15, 'bc_1_3': 15, 'bc_2_1': 15, 'bc_2_2': 15, 'bc_3_1': 15 }
+            };
             const defaultConfig = {
                 maxAdjustMinutes: 60,
                 penalty: 15,
                 approval: 'Tự động chấp nhận trong thời hạn',
-                deadline: { SGN01S: '10:00', SGN02S: '10:00', SGN03S: '10:00', SGN04S: '10:00' },
-                grace: { SGN01S: 15, SGN02S: 15, SGN03S: 15, SGN04S: 15 }
+                deadlines: DEFAULT_DEADLINES,
+                grace: DEFAULT_GRACE,
+                reportTypes: DEFAULT_REPORT_TYPES
             };
+
             const seedData = [
                 { id: 'seed1', date: '2026-08-31', warehouse: 'SGN01S', emp: 'NV_An', reportType: 'bc_1_2', col1: 'SF100293841',
                     col2: 'Tuyến Tân Bình', col3: '150', col4: '', col5: '', col6: '', status: 'Hoàn thành',
-                    submittedAt: '2026-08-31T09:45', adjustments: [] },
+                    submittedAt: '2026-08-31T09:45', adjustments: [], edits: [] },
                 { id: 'seed2', date: '2026-08-31', warehouse: 'SGN02S', emp: 'NV_Sang', reportType: 'bc_1_2',
                     col1: 'SF100293842', col2: 'Tuyến Quận 1', col3: '85', col4: '', col5: '', col6: '',
-                    status: 'Hoàn thành', submittedAt: '2026-08-31T09:50', adjustments: [] },
+                    status: 'Hoàn thành', submittedAt: '2026-08-31T09:50', adjustments: [], edits: [] },
                 { id: 'seed3', date: '2026-08-31', warehouse: 'SGN03S', emp: 'NV_Bao', reportType: 'bc_1_2',
                     col1: 'SF100293843', col2: 'Tuyến Bình Thạnh', col3: '210', col4: '', col5: '', col6: '',
-                    status: 'Chờ xử lý', submittedAt: '2026-08-31T10:10', adjustments: [] },
+                    status: 'Chờ xử lý', submittedAt: '2026-08-31T10:10', adjustments: [], edits: [] },
                 { id: 'seed4', date: '2026-08-30', warehouse: 'SGN04S', emp: 'NV_Tuan', reportType: 'bc_1_2',
                     col1: 'SF100293844', col2: 'Tuyến Thủ Đức', col3: '120', col4: '', col5: '', col6: '',
-                    status: 'Hoàn thành', submittedAt: '2026-08-30T09:40', adjustments: [] }
+                    status: 'Hoàn thành', submittedAt: '2026-08-30T09:40', adjustments: [], edits: [] }
             ];
 
             let db = loadDB();
+            let currentUser = null; // { username, role: 'wa'|'admin1'|'admin2', warehouse, empId }
+            let editRecordId = null;
 
-            // ==================== LOGIN STATE ====================
-            let currentUser = null; // { username, warehouse, empId, isAdmin }
-
+            // ==================== DB HELPERS ====================
             function loadDB() {
                 try {
                     const x = JSON.parse(localStorage.getItem(KEY));
@@ -907,7 +1011,7 @@
                 const t = document.getElementById('toast');
                 t.textContent = msg;
                 t.classList.add('show');
-                setTimeout(() => t.classList.remove('show'), 2300);
+                setTimeout(() => t.classList.remove('show'), 2500);
             }
 
             function today() { return new Date().toISOString().slice(0, 10); }
@@ -915,66 +1019,53 @@
             function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;',
                     '"': '&quot;', "'": '&#39;' }[m])); }
 
+            function getReportTypes() { return db.config.reportTypes || DEFAULT_REPORT_TYPES; }
+
+            function getReportTypeList() { return Object.keys(getReportTypes()); }
+
+            function getReportName(code) { const r = getReportTypes(); return r[code] ? r[code].name : code; }
+
+            function getColumns(code) { const r = getReportTypes(); return r[code] ? r[code].columns : ['Cột 1', 'Cột 2',
+                    'Cột 3', 'Cột 4', 'Cột 5', 'Cột 6'
+                ]; }
+
             function reportCode() {
                 const g1 = document.getElementById('group1Select').value;
                 const g2 = document.getElementById('group2Select').value;
                 const g3 = document.getElementById('group3Select').value;
-                return g1 || g2 || g3 || 'bc_1_2';
+                return g1 || g2 || g3 || '';
             }
 
-            function reportDisplayName(code) {
-                const map = {
-                    'bc_1_1': 'BC.1.1',
-                    'bc_1_2': 'BC.1.2',
-                    'bc_1_3': 'BC.1.3',
-                    'bc_2_1': 'BC.2.1',
-                    'bc_2_2': 'BC.2.2',
-                    'bc_3_1': 'BC.3.1'
-                };
-                return map[code] || code.toUpperCase();
+            function reportDisplayName(code) { return getReportName(code) || code; }
+
+            function deadlineFor(wh, rt) {
+                const d = db.config.deadlines;
+                if (d && d[wh] && d[wh][rt]) return d[wh][rt];
+                // fallback
+                return '10:00';
             }
 
-            function deadlineFor(wh, rt) { return db.config.deadline[wh] || '10:00'; }
+            function graceFor(wh, rt) {
+                const g = db.config.grace;
+                if (g && g[wh] && g[wh][rt] !== undefined) return g[wh][rt];
+                return 15;
+            }
 
             function statusFor(r) {
                 const dl = deadlineFor(r.warehouse, r.reportType);
                 const sent = new Date(r.submittedAt);
                 const d = new Date(r.date + 'T' + dl);
-                const grace = Number(db.config.grace[r.warehouse] ?? 15);
+                const grace = graceFor(r.warehouse, r.reportType);
                 if (sent.getTime() <= d.getTime() + grace * 60000) return 'Đạt KPI';
                 return 'Trễ KPI';
             }
 
             function getPlaceholderForReportType(code) {
-                const map = {
-                    'bc_1_1': 'STT\tNgày (dd-mmm-yy)\tMã Vận Đơn (SFxxx)\tID NV\tGiờ PU/ giờ Detain (hh:mm)\tDetain CP (07,120..)',
-                    'bc_1_2': 'STT\tMã SP\tTên SP\tSố lượng\tĐơn vị\tGhi chú',
-                    'bc_1_3': 'STT\tMã NV\tTên NV\tCa làm\tSố giờ\tGhi chú',
-                    'bc_2_1': 'STT\tNgày (dd-mmm-yy)\tMã Vận Đơn (SFxxx)\tID NV\tGiờ nhập (hh:mm)\tDetain CP',
-                    'bc_2_2': 'STT\tMã SP\tTên SP\tSố lượng\tĐơn vị\tGhi chú',
-                    'bc_3_1': 'STT\tBiển số\tTuyến\tGiờ xuất\tGiờ nhập\tGhi chú'
-                };
-                return map[code] || 'STT\tCột 1\tCột 2\tCột 3\tCột 4\tCột 5';
-            }
-
-            // ==================== COLUMN NAMES ====================
-            const COLUMN_NAMES = {
-                'bc_1_1': ['STT', 'Ngày (dd-mmm-yy)', 'Mã VĐ (SFxx)', 'ID NV PU', 'Giờ nhập', 'CP Detain'],
-                'bc_1_2': ['STT', 'Mã SP', 'Tên SP', 'Số lượng', 'Đơn vị', 'Ghi chú'],
-                'bc_1_3': ['STT', 'Mã NV', 'Tên NV', 'Ca làm', 'Số giờ', 'Ghi chú'],
-                'bc_2_1': ['STT', 'Ngày (dd-mmm-yy)', 'Mã VĐ (SFxx)', 'ID NV nhập', 'Giờ nhập', 'CP Detain'],
-                'bc_2_2': ['STT', 'Mã SP', 'Tên SP', 'Số lượng', 'Đơn vị', 'Ghi chú'],
-                'bc_3_1': ['STT', 'Biển số', 'Tuyến', 'Giờ xuất', 'Giờ nhập', 'Ghi chú']
-            };
-
-            function updateColumnNames() {
-                const code = reportCode();
-                const names = COLUMN_NAMES[code] || ['Cột 1', 'Cột 2', 'Cột 3', 'Cột 4', 'Cột 5', 'Cột 6'];
-                const container = document.getElementById('colNamesDisplay');
-                container.innerHTML = names.map((n, i) => `<span>Cột ${i+1}: ${n}</span>`).join('');
-                // Update placeholder too
-                updatePlaceholder();
-                updateReportIdDisplay();
+                const cols = getColumns(code);
+                if (cols && cols.length === 6) {
+                    return cols.map((c, i) => `Cột ${i+1}: ${c}`).join('\t');
+                }
+                return 'STT\tCột 2\tCột 3\tCột 4\tCột 5\tCột 6';
             }
 
             // ==================== LOGIN ====================
@@ -983,10 +1074,10 @@
                 const pass = document.getElementById('loginPass').value.trim();
                 const errEl = document.getElementById('loginError');
 
-                // ADMIN
+                // ADMIN (cấp 1)
                 if (user.toUpperCase() === 'ADMIN') {
                     if (pass === '54321') {
-                        currentUser = { username: user, warehouse: null, empId: null, isAdmin: true };
+                        currentUser = { username: user, role: 'admin1', warehouse: null, empId: null };
                         errEl.classList.remove('show');
                         enterApp();
                         return;
@@ -996,20 +1087,33 @@
                         return;
                     }
                 }
+                // ADMIN2 (cấp 2)
+                if (user.toUpperCase() === 'ADMIN2') {
+                    if (pass === '67890') {
+                        currentUser = { username: user, role: 'admin2', warehouse: null, empId: null };
+                        errEl.classList.remove('show');
+                        enterApp();
+                        return;
+                    } else {
+                        errEl.textContent = '⚠️ Sai mật khẩu ADMIN2.';
+                        errEl.classList.add('show');
+                        return;
+                    }
+                }
 
-                // WA01S_123, WA02S_456, etc.
+                // WA
                 const match = user.match(/^(WA\d{2}S)_(.+)$/i);
                 if (!match) {
                     errEl.textContent = '⚠️ Tài khoản không đúng định dạng. VD: WA01S_12345';
                     errEl.classList.add('show');
                     return;
                 }
-                const waCode = match[1].toUpperCase(); // WA01S
+                const waCode = match[1].toUpperCase();
                 const empId = match[2];
                 const whMap = { 'WA01S': 'SGN01S', 'WA02S': 'SGN02S', 'WA03S': 'SGN03S', 'WA04S': 'SGN04S' };
                 const warehouse = whMap[waCode];
                 if (!warehouse) {
-                    errEl.textContent = '⚠️ Mã kho không hợp lệ. Dùng WA01S, WA02S, WA03S, WA04S.';
+                    errEl.textContent = '⚠️ Mã kho không hợp lệ.';
                     errEl.classList.add('show');
                     return;
                 }
@@ -1018,7 +1122,7 @@
                     errEl.classList.add('show');
                     return;
                 }
-                currentUser = { username: user, warehouse: warehouse, empId: empId, isAdmin: false };
+                currentUser = { username: user, role: 'wa', warehouse: warehouse, empId: empId };
                 errEl.classList.remove('show');
                 enterApp();
             }
@@ -1035,7 +1139,34 @@
             function enterApp() {
                 document.getElementById('loginOverlay').classList.add('hidden');
                 document.getElementById('mainApp').style.display = 'block';
-                document.getElementById('displayUser').textContent = currentUser.isAdmin ? 'ADMIN' : currentUser.username;
+                document.getElementById('displayUser').textContent = currentUser.username;
+                const roleMap = { 'wa': 'NV kho', 'admin1': 'Admin cấp 1', 'admin2': 'Admin cấp 2' };
+                document.getElementById('displayRole').textContent = roleMap[currentUser.role] || '';
+
+                // Hide Download tab for WA
+                const dlTab = document.getElementById('downloadTabBtn');
+                if (currentUser.role === 'wa') {
+                    dlTab.classList.add('hidden-tab');
+                } else {
+                    dlTab.classList.remove('hidden-tab');
+                }
+
+                // Admin setup subtab only for admin2
+                const setupSubtab = document.getElementById('adminSetupSubtab');
+                if (currentUser.role === 'admin2') {
+                    setupSubtab.classList.remove('hidden-subtab');
+                } else {
+                    setupSubtab.classList.add('hidden-subtab');
+                }
+
+                // Show admin2-specific setup if admin2
+                const admin2Div = document.getElementById('admin2Setup');
+                if (currentUser.role === 'admin2') {
+                    admin2Div.style.display = 'block';
+                } else {
+                    admin2Div.style.display = 'none';
+                }
+
                 populateWarehouseSelects();
                 updateBadges();
                 document.getElementById('checkDate').value = today();
@@ -1046,18 +1177,24 @@
                 renderPerformance();
                 filterDownloadData();
                 renderDashboard();
+                populateReportSelects();
                 updateColumnNames();
+                // If admin2, load report type list
+                if (currentUser.role === 'admin2') {
+                    loadReportTypeList();
+                }
             }
 
             function populateWarehouseSelects() {
-                const whs = currentUser.isAdmin ? ['SGN01S', 'SGN02S', 'SGN03S', 'SGN04S'] : [currentUser.warehouse];
+                const whs = (currentUser.role === 'wa') ? [currentUser.warehouse] : ['SGN01S', 'SGN02S', 'SGN03S',
+                'SGN04S'];
                 const selects = ['warehouseSelect', 'dlWarehouse', 'rptWarehouse'];
                 selects.forEach(id => {
                     const sel = document.getElementById(id);
                     const currentVal = sel.value;
                     sel.innerHTML = '';
                     if (id === 'dlWarehouse' || id === 'rptWarehouse') {
-                        if (currentUser.isAdmin) {
+                        if (currentUser.role !== 'wa') {
                             const opt = document.createElement('option');
                             opt.value = 'ALL';
                             opt.textContent = 'ALL';
@@ -1073,19 +1210,21 @@
                     if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
                         sel.value = currentVal;
                     } else {
-                        sel.value = whs[0];
+                        sel.value = whs[0] || '';
                     }
                 });
-                if (!currentUser.isAdmin) {
-                    document.getElementById('dlWarehouse').value = currentUser.warehouse;
-                    document.getElementById('rptWarehouse').value = currentUser.warehouse;
+                if (currentUser.role !== 'wa') {
+                    document.getElementById('dlWarehouse').value = 'ALL';
+                    document.getElementById('rptWarehouse').value = 'ALL';
                 }
             }
 
             function updateBadges() {
                 const container = document.getElementById('badgeContainer');
                 const badges = container.querySelectorAll('.badge');
-                const visibleWhs = currentUser.isAdmin ? ['SGN01S', 'SGN02S', 'SGN03S', 'SGN04S'] : [currentUser.warehouse];
+                const visibleWhs = (currentUser.role === 'wa') ? [currentUser.warehouse] : ['SGN01S', 'SGN02S', 'SGN03S',
+                    'SGN04S'
+                ];
                 badges.forEach(b => {
                     const wh = b.getAttribute('data-wh');
                     if (visibleWhs.includes(wh)) {
@@ -1096,26 +1235,74 @@
                 });
             }
 
-            // ==================== REPORT TYPE CHANGE ====================
-            function onReportTypeChange(changedId) {
-                const ids = ['group1Select', 'group2Select', 'group3Select'];
-                const changed = document.getElementById(changedId);
-                const val = changed.value;
-                ids.forEach(id => {
-                    if (id !== changedId) {
-                        document.getElementById(id).value = '';
+            // ==================== REPORT SELECTS ====================
+            function populateReportSelects() {
+                const types = getReportTypes();
+                const codes = Object.keys(types);
+                const selects = ['group1Select', 'group2Select', 'group3Select', 'dlReportType', 'cfgReportType'];
+                selects.forEach(id => {
+                    const sel = document.getElementById(id);
+                    if (!sel) return;
+                    const currentVal = sel.value;
+                    sel.innerHTML = '';
+                    if (id !== 'cfgReportType') {
+                        const opt = document.createElement('option');
+                        opt.value = '';
+                        opt.textContent = '-- Chọn --';
+                        sel.appendChild(opt);
+                    }
+                    codes.forEach(code => {
+                        const opt = document.createElement('option');
+                        opt.value = code;
+                        opt.textContent = types[code].name || code;
+                        sel.appendChild(opt);
+                    });
+                    if (currentVal && codes.includes(currentVal)) {
+                        sel.value = currentVal;
                     }
                 });
-                updateColumnNames();
-                document.getElementById('inputReportIdDisplay').textContent = reportDisplayName(reportCode());
+                // For dlReportType keep ALL
+                const dlSel = document.getElementById('dlReportType');
+                if (dlSel) {
+                    const allOpt = document.createElement('option');
+                    allOpt.value = 'ALL';
+                    allOpt.textContent = 'ALL';
+                    dlSel.prepend(allOpt);
+                    if (!currentUser || currentUser.role === 'wa') {
+                        // wa users don't see download tab anyway
+                    }
+                }
+                // cfgReportType: add empty option for default
+                const cfgSel = document.getElementById('cfgReportType');
+                if (cfgSel) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = '-- Chọn --';
+                    cfgSel.prepend(opt);
+                }
+            }
+
+            // ==================== COLUMN NAMES ====================
+            function updateColumnNames() {
+                const code = reportCode();
+                const cols = getColumns(code);
+                const container = document.getElementById('colNamesDisplay');
+                if (cols && cols.length === 6) {
+                    container.innerHTML = cols.map((n, i) => `<span>Cột ${i+1}: ${n}</span>`).join('');
+                } else {
+                    container.innerHTML = '<span>Chưa có định nghĩa cột</span>';
+                }
+                updatePlaceholder();
+                updateReportIdDisplay();
             }
 
             function updatePlaceholder() {
                 const code = reportCode();
                 const ta = document.getElementById('pastedText');
                 if (code) {
-                    ta.placeholder = '📋 ' + getPlaceholderForReportType(code) +
-                        '\n\nDán dữ liệu Excel vào đây (mỗi dòng là 1 bản ghi, các cột cách nhau bởi TAB hoặc dấu phẩy)';
+                    const cols = getColumns(code);
+                    const sample = cols ? cols.join('\t') : 'STT\tCột2\tCột3\tCột4\tCột5\tCột6';
+                    ta.placeholder = '📋 ' + sample + '\n\nDán dữ liệu Excel vào đây (mỗi dòng là 1 bản ghi, các cột cách nhau bởi TAB hoặc dấu phẩy)';
                 } else {
                     ta.placeholder = 'Vui lòng chọn loại báo cáo ở trên trước khi dán dữ liệu.';
                 }
@@ -1195,7 +1382,7 @@
                 if (!code) { toast('⚠️ Vui lòng chọn loại báo cáo'); return; }
                 const wh = document.getElementById('warehouseSelect').value;
                 const date = document.getElementById('checkDate').value;
-                const emp = currentUser.isAdmin ? 'ADMIN' : (currentUser.empId || currentUser.username);
+                const emp = currentUser.username;
                 const rows = text.split(/\r?\n/).filter(Boolean).map((line, i) => line.split(/\t|,/).map(x => x.trim()));
                 const now = new Date();
                 const iso = now.toISOString().slice(0, 16);
@@ -1215,7 +1402,8 @@
                         col6: a[5] || '',
                         status: 'Hoàn thành',
                         submittedAt: iso,
-                        adjustments: []
+                        adjustments: [],
+                        edits: []
                     });
                 });
                 persist();
@@ -1266,7 +1454,7 @@
                     `❌ Chỉnh sửa sau ${elapsed} phút - Trừ KPI`);
             }
 
-            // ==================== DOWNLOAD ====================
+            // ==================== DOWNLOAD (ADMIN) ====================
             function getFilteredDownload() {
                 const wh = document.getElementById('dlWarehouse').value;
                 const emp = document.getElementById('dlEmpId').value.trim().toLowerCase();
@@ -1290,30 +1478,87 @@
                 document.getElementById('previewCount').textContent = rows.length;
                 const tbody = document.querySelector('#dlResultTable tbody');
                 if (!rows.length) {
-                    tbody.innerHTML = '<tr><td colspan="12" class="empty">Không tìm thấy dữ liệu phù hợp</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="14" class="empty">Không tìm thấy dữ liệu phù hợp</td></tr>';
                     return;
                 }
-                tbody.innerHTML = rows.map(r => `<tr>
-              <td>${esc(r.date)}</td>
-              <td>${esc(r.warehouse)}</td>
-              <td>${esc(r.emp)}</td>
-              <td>${esc(reportDisplayName(r.reportType))}</td>
-              <td>${esc(r.col1)}</td>
-              <td>${esc(r.col2)}</td>
-              <td>${esc(r.col3)}</td>
-              <td>${esc(r.col4)}</td>
-              <td>${esc(r.col5)}</td>
-              <td>${esc(r.col6)}</td>
-              <td>${esc(r.status)}</td>
-              <td>${esc(new Date(r.submittedAt).toLocaleString('vi-VN'))}</td>
-            </tr>`).join('');
-                return rows;
+                tbody.innerHTML = rows.map(r => {
+                    const editHistory = (r.edits || []).map(e =>
+                        `${e.user} ${new Date(e.timestamp).toLocaleString('vi-VN')}: ${e.reason}`
+                    ).join('; ');
+                    return `<tr>
+                <td>${esc(r.date)}</td>
+                <td>${esc(r.warehouse)}</td>
+                <td>${esc(r.emp)}</td>
+                <td>${esc(reportDisplayName(r.reportType))}</td>
+                <td>${esc(r.col1)}</td>
+                <td>${esc(r.col2)}</td>
+                <td>${esc(r.col3)}</td>
+                <td>${esc(r.col4)}</td>
+                <td>${esc(r.col5)}</td>
+                <td>${esc(r.col6)}</td>
+                <td>${esc(r.status)}</td>
+                <td>${esc(new Date(r.submittedAt).toLocaleString('vi-VN'))}</td>
+                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">${esc(editHistory)}</td>
+                <td><button class="btn orange" onclick="openEditModal('${r.id}')">✏️ Sửa</button></td>
+              </tr>`;
+                }).join('');
             }
 
+            function openEditModal(id) {
+                if (currentUser.role === 'wa') { toast('Bạn không có quyền sửa'); return; }
+                const r = db.records.find(x => x.id === id);
+                if (!r) { toast('Không tìm thấy bản ghi'); return; }
+                editRecordId = id;
+                document.getElementById('editCol1').value = r.col1 || '';
+                document.getElementById('editCol2').value = r.col2 || '';
+                document.getElementById('editCol3').value = r.col3 || '';
+                document.getElementById('editCol4').value = r.col4 || '';
+                document.getElementById('editCol5').value = r.col5 || '';
+                document.getElementById('editCol6').value = r.col6 || '';
+                document.getElementById('editReason').value = '';
+                document.getElementById('editRecordModal').classList.add('show');
+            }
+
+            function closeEditModal() {
+                document.getElementById('editRecordModal').classList.remove('show');
+                editRecordId = null;
+            }
+
+            function saveEditRecord() {
+                if (!editRecordId) return;
+                const r = db.records.find(x => x.id === editRecordId);
+                if (!r) { toast('Lỗi: không tìm thấy bản ghi'); return; }
+                const reason = document.getElementById('editReason').value.trim();
+                if (!reason) { toast('Vui lòng nhập lý do chỉnh sửa'); return; }
+                // Lưu giá trị cũ
+                const oldValues = { col1: r.col1, col2: r.col2, col3: r.col3, col4: r.col4, col5: r.col5, col6: r.col6 };
+                // Cập nhật
+                r.col1 = document.getElementById('editCol1').value.trim();
+                r.col2 = document.getElementById('editCol2').value.trim();
+                r.col3 = document.getElementById('editCol3').value.trim();
+                r.col4 = document.getElementById('editCol4').value.trim();
+                r.col5 = document.getElementById('editCol5').value.trim();
+                r.col6 = document.getElementById('editCol6').value.trim();
+                // Ghi log
+                r.edits = r.edits || [];
+                r.edits.push({
+                    user: currentUser.username,
+                    timestamp: new Date().toISOString(),
+                    reason: reason,
+                    oldValues: oldValues
+                });
+                persist();
+                closeEditModal();
+                filterDownloadData();
+                renderPerformance();
+                toast('✓ Đã cập nhật bản ghi');
+            }
+
+            // ==================== EXPORT ====================
             function exportToExcel() {
                 const rows = getFilteredDownload();
                 if (!rows.length) { toast('Không có dữ liệu để xuất'); return; }
-                if (typeof XLSX === 'undefined') { toast('Không tải được thư viện Excel. Kiểm tra Internet.'); return; }
+                if (typeof XLSX === 'undefined') { toast('Không tải được thư viện Excel.'); return; }
                 const head = ['Ngày', 'Kho', 'Nhân viên', 'Mã BC', 'Cột 1', 'Cột 2', 'Cột 3', 'Cột 4', 'Cột 5', 'Cột 6',
                     'Trạng thái', 'Giờ gửi'
                 ];
@@ -1394,55 +1639,186 @@
                     ).join('');
             }
 
-            // ==================== CONFIG ====================
-            function saveConfig() {
+            // ==================== ADMIN2 SETUP ====================
+            function loadReportTypeList() {
+                const container = document.getElementById('reportTypeList');
+                const types = getReportTypes();
+                container.innerHTML = '';
+                Object.keys(types).forEach(code => {
+                    const t = types[code];
+                    const div = document.createElement('div');
+                    div.className = 'report-type-item';
+                    div.innerHTML = `
+                <input type="text" class="rt-code" value="${esc(code)}" readonly style="width:80px;background:#e9ecef;">
+                <input type="text" class="rt-name" value="${esc(t.name)}" placeholder="Tên báo cáo" style="flex:1;">
+                <span class="col-input"><input type="text" class="rt-col0" value="${esc(t.columns[0]||'')}" placeholder="Cột 1"></span>
+                <span class="col-input"><input type="text" class="rt-col1" value="${esc(t.columns[1]||'')}" placeholder="Cột 2"></span>
+                <span class="col-input"><input type="text" class="rt-col2" value="${esc(t.columns[2]||'')}" placeholder="Cột 3"></span>
+                <span class="col-input"><input type="text" class="rt-col3" value="${esc(t.columns[3]||'')}" placeholder="Cột 4"></span>
+                <span class="col-input"><input type="text" class="rt-col4" value="${esc(t.columns[4]||'')}" placeholder="Cột 5"></span>
+                <span class="col-input"><input type="text" class="rt-col5" value="${esc(t.columns[5]||'')}" placeholder="Cột 6"></span>
+                <button class="btn light" onclick="removeReportType('${code}')" style="padding:2px 8px;">🗑️</button>
+              `;
+                    container.appendChild(div);
+                });
+            }
+
+            function addReportType() {
+                const container = document.getElementById('reportTypeList');
+                const newCode = 'bc_' + (Object.keys(getReportTypes()).length + 1) + '_1';
+                const div = document.createElement('div');
+                div.className = 'report-type-item';
+                div.innerHTML = `
+              <input type="text" class="rt-code" value="${esc(newCode)}" style="width:80px;background:#fff;" placeholder="Mã BC">
+              <input type="text" class="rt-name" value="" placeholder="Tên báo cáo" style="flex:1;">
+              <span class="col-input"><input type="text" class="rt-col0" value="" placeholder="Cột 1"></span>
+              <span class="col-input"><input type="text" class="rt-col1" value="" placeholder="Cột 2"></span>
+              <span class="col-input"><input type="text" class="rt-col2" value="" placeholder="Cột 3"></span>
+              <span class="col-input"><input type="text" class="rt-col3" value="" placeholder="Cột 4"></span>
+              <span class="col-input"><input type="text" class="rt-col4" value="" placeholder="Cột 5"></span>
+              <span class="col-input"><input type="text" class="rt-col5" value="" placeholder="Cột 6"></span>
+              <button class="btn light" onclick="this.parentElement.remove()" style="padding:2px 8px;">🗑️</button>
+            `;
+                container.appendChild(div);
+            }
+
+            function removeReportType(code) {
+                if (!confirm(`Xóa báo cáo "${code}"?`)) return;
+                const types = getReportTypes();
+                delete types[code];
+                db.config.reportTypes = types;
+                persist();
+                loadReportTypeList();
+                populateReportSelects();
+                updateColumnNames();
+                toast('✓ Đã xóa báo cáo');
+            }
+
+            function saveReportTypes() {
+                const items = document.querySelectorAll('#reportTypeList .report-type-item');
+                const newTypes = {};
+                let valid = true;
+                items.forEach(div => {
+                    const code = div.querySelector('.rt-code').value.trim();
+                    const name = div.querySelector('.rt-name').value.trim();
+                    const cols = [
+                        div.querySelector('.rt-col0').value.trim(),
+                        div.querySelector('.rt-col1').value.trim(),
+                        div.querySelector('.rt-col2').value.trim(),
+                        div.querySelector('.rt-col3').value.trim(),
+                        div.querySelector('.rt-col4').value.trim(),
+                        div.querySelector('.rt-col5').value.trim()
+                    ];
+                    if (!code) { valid = false;
+                        toast('⚠️ Mã báo cáo không được để trống'); return; }
+                    if (!name) { valid = false;
+                        toast('⚠️ Tên báo cáo không được để trống'); return; }
+                    newTypes[code] = { name, columns: cols };
+                });
+                if (!valid) return;
+                db.config.reportTypes = newTypes;
+                persist();
+                loadReportTypeList();
+                populateReportSelects();
+                updateColumnNames();
+                toast('✓ Đã lưu cấu hình báo cáo');
+            }
+
+            // ==================== DEADLINE & GRACE ====================
+            function saveDeadlineConfig() {
                 const wh = document.getElementById('cfgWarehouse').value;
-                db.config.deadline[wh] = document.getElementById('cfgDeadline').value;
-                db.config.grace[wh] = +document.getElementById('cfgGrace').value || 0;
+                const rt = document.getElementById('cfgReportType').value;
+                if (!rt) { toast('Vui lòng chọn loại báo cáo'); return; }
+                const deadline = document.getElementById('cfgDeadline').value;
+                const grace = +document.getElementById('cfgGrace').value;
+                if (!deadline) { toast('Vui lòng nhập deadline'); return; }
+                if (isNaN(grace) || grace < 0) { toast('Grace phải là số không âm'); return; }
+                // Initialize objects
+                if (!db.config.deadlines) db.config.deadlines = JSON.parse(JSON.stringify(DEFAULT_DEADLINES));
+                if (!db.config.deadlines[wh]) db.config.deadlines[wh] = {};
+                db.config.deadlines[wh][rt] = deadline;
+                if (!db.config.grace) db.config.grace = JSON.parse(JSON.stringify(DEFAULT_GRACE));
+                if (!db.config.grace[wh]) db.config.grace[wh] = {};
+                db.config.grace[wh][rt] = grace;
+                persist();
+                toast(`✓ Đã lưu deadline ${deadline}, grace ${grace} phút cho ${wh} - ${rt}`);
+                renderPerformance();
+                renderDashboard();
+            }
+
+            function loadConfigForm() {
+                document.getElementById('cfgMaxAdjustMinutes').value = db.config.maxAdjustMinutes || 60;
+                document.getElementById('cfgPenalty').value = db.config.penalty || 15;
+                document.getElementById('cfgApproval').value = db.config.approval || 'Tự động chấp nhận trong thời hạn';
+                // Load deadline/grace form for current selection
+                const wh = document.getElementById('cfgWarehouse').value;
+                const rt = document.getElementById('cfgReportType').value;
+                if (rt) {
+                    const dl = deadlineFor(wh, rt);
+                    const gr = graceFor(wh, rt);
+                    document.getElementById('cfgDeadline').value = dl || '10:00';
+                    document.getElementById('cfgGrace').value = gr !== undefined ? gr : 15;
+                }
+            }
+
+            document.getElementById('cfgWarehouse').addEventListener('change', loadConfigForm);
+            document.getElementById('cfgReportType').addEventListener('change', loadConfigForm);
+
+            function saveConfig() {
                 db.config.maxAdjustMinutes = +document.getElementById('cfgMaxAdjustMinutes').value || 60;
                 db.config.penalty = +document.getElementById('cfgPenalty').value || 0;
                 db.config.approval = document.getElementById('cfgApproval').value;
                 persist();
                 renderPerformance();
                 renderDashboard();
-                toast('✓ Đã lưu cấu hình KPI & Leadtime');
+                toast('✓ Đã lưu cấu hình chung');
             }
 
             function resetConfig() {
                 db.config = JSON.parse(JSON.stringify(defaultConfig));
                 persist();
                 loadConfigForm();
+                loadReportTypeList();
+                populateReportSelects();
+                updateColumnNames();
                 renderPerformance();
                 renderDashboard();
                 toast('↩️ Đã khôi phục mặc định');
             }
 
-            function loadConfigForm() {
-                document.getElementById('cfgMaxAdjustMinutes').value = db.config.maxAdjustMinutes;
-                document.getElementById('cfgPenalty').value = db.config.penalty;
-                document.getElementById('cfgApproval').value = db.config.approval;
-                const wh = document.getElementById('cfgWarehouse').value;
-                document.getElementById('cfgDeadline').value = db.config.deadline[wh] || '10:00';
-                document.getElementById('cfgGrace').value = db.config.grace[wh] ?? 15;
+            // ==================== REPORT TYPE CHANGE ====================
+            function onReportTypeChange(changedId) {
+                const ids = ['group1Select', 'group2Select', 'group3Select'];
+                const changed = document.getElementById(changedId);
+                const val = changed.value;
+                ids.forEach(id => {
+                    if (id !== changedId) {
+                        document.getElementById(id).value = '';
+                    }
+                });
+                updateColumnNames();
+                document.getElementById('inputReportIdDisplay').textContent = val ? reportDisplayName(val) : '--';
             }
-
-            document.getElementById('cfgWarehouse').addEventListener('change', loadConfigForm);
 
             // ==================== ENTER KEY FOR LOGIN ====================
             document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter')
                     document.getElementById('loginPass').focus(); });
             document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-            // ==================== AUTO INIT ====================
+            // ==================== INIT ====================
             (function init() {
                 document.getElementById('mainApp').style.display = 'none';
                 document.getElementById('loginOverlay').classList.remove('hidden');
                 document.getElementById('loginUser').focus();
                 updatePlaceholder();
                 updateReportIdDisplay();
-                // Set default column names
+                populateReportSelects();
                 updateColumnNames();
+                // If admin2, load report list
+                if (currentUser && currentUser.role === 'admin2') {
+                    loadReportTypeList();
+                }
             })();
         </script>
-</body>
-</html>
+    </body>
+    </html>
