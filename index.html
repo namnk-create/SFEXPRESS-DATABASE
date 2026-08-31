@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    /* Container chính tối ưu không gian chiều ngang */
+    .warehouse-checkin-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 16px;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-family: Arial, sans-serif;
+    }
+
+    /* Nhóm thông tin bên trái: Icon + Tên kho + Các icon trạng thái */
+    .warehouse-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .warehouse-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 16px;
+      color: #1e3a8a;
+      text-transform: uppercase;
+    }
+
+    /* Icon kho màu (xanh, đỏ) */
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-left: 8px;
+      border-left: 2px solid #cbd5e1;
+    }
+
+    .status-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .bg-green { background-color: #22c55e; } /* Xanh - Đã checkin/OK */
+    .bg-red   { background-color: #ef4444; } /* Đỏ - Chưa checkin/Cảnh báo */
+
+    /* Bộ chọn ngày bên phải */
+    .date-picker-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #334155;
+      font-weight: 500;
+    }
+
+    .date-input {
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      outline: none;
+      background-color: #ffffff;
+    }
+
+    .date-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="warehouse-checkin-bar">
+    <!-- Nhóm bên trái -->
+    <div class="warehouse-info">
+      <!-- Icon lịch + Tên kho -->
+      <div class="warehouse-title">
+        <span>📅</span>
+        <span>KHO TỔNG CÔNG TY</span>
+      </div>
+
+      <!-- Biểu tượng 4 kho màu (Xanh / Đỏ) -->
+      <div class="status-icons" title="Trạng thái 4 kho">
+        <span class="status-badge bg-green" title="Kho 1: Đã check-in">K1</span>
+        <span class="status-badge bg-green" title="Kho 2: Đã check-in">K2</span>
+        <span class="status-badge bg-red"   title="Kho 3: Chưa check-in">K3</span>
+        <span class="status-badge bg-green" title="Kho 4: Đã check-in">K4</span>
+      </div>
+    </div>
+
+    <!-- Nhóm chọn ngày bên phải -->
+    <div class="date-picker-group">
+      <label for="checkin-date">Chọn ngày kiểm tra:</label>
+      <input type="date" id="checkin-date" class="date-input" value="2026-08-31">
+    </div>
+  </div>
+
+</body>
+</html>
