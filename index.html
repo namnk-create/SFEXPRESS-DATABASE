@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1E1E1E">
-<title>SFEXPRESS DATABASE - Warehouse & Performance v3</title>
+<title>SFEXPRESS DATABASE - Warehouse & Performance v4 (Firebase)</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --sf-red:#DC001B; --sf-black:#1E1E1E; --sf-blue:#0277BD; --sf-green:#2E7D32;
@@ -119,6 +122,11 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
 .role-SGNSS{background:var(--sf-red)}
 .role-VAN{background:var(--sf-green)}
 .role-BA{background:#7c3aed}
+#connStatus{font-size:11px;padding:2px 8px;border-radius:10px;background:#334155}
+#connStatus.ok{background:#166534}
+#connStatus.err{background:var(--sf-red)}
+.boot-msg{text-align:center;color:var(--muted);font-size:13px;padding:20px 0;}
+.boot-err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:12.5px;margin-top:10px;}
 @media(max-width:900px){
   body{padding:6px}
   .header{padding:10px 12px}
@@ -155,13 +163,17 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
 <div id="loginOverlay">
   <div class="login-card">
     <h2>🔐 ĐĂNG NHẬP</h2>
-    <div class="sub">SFEXPRESS Warehouse System</div>
-    <div class="field"><label>Tài khoản (Mã NV / SGNSS)</label><input id="loginUser" placeholder="VD: WA001, SSM001, SGNSS" autofocus></div>
-    <div class="field"><label>Mật khẩu</label><input id="loginPass" type="password" placeholder="•••••••"></div>
-    <button class="btn red" onclick="doLogin()">🔑 Đăng nhập</button>
-    <div id="loginError" class="login-error">⚠️ Sai tài khoản hoặc mật khẩu. Vui lòng thử lại.</div>
-    <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center;">
-      Demo: WA001/12345 &nbsp;·&nbsp; SSM001/12345 &nbsp;·&nbsp; SGNSS/SGNSS@2026
+    <div class="sub">SFEXPRESS Warehouse System · Firebase Realtime</div>
+    <div id="bootLoadingMsg" class="boot-msg">🔄 Đang kết nối Firebase...</div>
+    <div id="bootErrorMsg" class="boot-err" style="display:none"></div>
+    <div id="loginFormFields" style="display:none">
+      <div class="field"><label>Tài khoản (Mã NV / SGNSS)</label><input id="loginUser" placeholder="VD: WA001, SSM001, SGNSS"></div>
+      <div class="field"><label>Mật khẩu</label><input id="loginPass" type="password" placeholder="•••••••"></div>
+      <button class="btn red" onclick="doLogin()">🔑 Đăng nhập</button>
+      <div id="loginError" class="login-error">⚠️ Sai tài khoản hoặc mật khẩu. Vui lòng thử lại.</div>
+      <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center;">
+        Demo: WA001/12345 &nbsp;·&nbsp; SSM001/12345 &nbsp;·&nbsp; SGNSS/SGNSS@2026
+      </div>
     </div>
   </div>
 </div>
@@ -173,6 +185,7 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
       <div class="title">HỆ THỐNG QUẢN LÝ KHO HÀNG &amp; PERFORMANCE TỔNG HỢP</div>
     </div>
     <div class="account">
+      <span id="connStatus">🔄</span> &nbsp;
       👤 <span id="displayUser">-</span> &nbsp;·&nbsp; <span id="displayRole"></span>
       &nbsp;·&nbsp; <button class="btn light" style="padding:4px 10px;font-size:11px;" onclick="openChangePassword()">🔑 Đổi mật khẩu</button>
       &nbsp;<button class="btn light" style="padding:4px 10px;font-size:11px;" onclick="doLogout()">Đăng xuất</button>
@@ -188,7 +201,7 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
     <section id="uploadTab" class="page active">
       <div class="warehouse-bar">
         <div class="warehouse-left">
-          <div class="field"><label>Kho</label><select id="warehouseSelect" onchange="loadWarehouseDay()"></select></div>
+          <div class="field"><label>Kho</label><select id="warehouseSelect" onchange="loadWarehouseDay();attachPerformanceListener();"></select></div>
           <div class="badges" id="badgeContainer"></div>
           <div class="notice" id="headcountSummaryDisplay">Đang tải...</div>
           <div class="notice" id="anomalyDisplay">Đang tải...</div>
@@ -221,7 +234,7 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
           <button class="btn red" onclick="submitReportData()">🚀 NỘP BÁO CÁO &amp; KIỂM TRA LEADTIME</button>
           <button class="btn light" onclick="clearPaste()">🧹 Xóa nội dung</button>
         </div>
-        <div class="notice">💾 Dữ liệu được lưu ngay trên trình duyệt bằng LocalStorage. Dữ liệu vẫn còn sau khi đóng/mở trình duyệt trên cùng thiết bị.</div>
+        <div class="notice">🔥 Dữ liệu được đẩy trực tiếp lên Firebase Firestore (đồng bộ 2 chiều theo thời gian thực) — SSM/SGNSS ở tab Download sẽ thấy ngay khi bạn nộp báo cáo.</div>
       </div>
       <div class="section">
         <h3 class="section-title">📈 LỊCH SỬ NỘP BÁO CÁO &amp; PERFORMANCE</h3>
@@ -235,20 +248,22 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
         <div class="grid grid-3">
           <div class="field"><label>Kho hàng</label><select id="dlWarehouse"></select></div>
           <div class="field"><label>Mã / Tên nhân viên</label><input id="dlEmpId" placeholder="VD: WA001, Nguyễn Văn A"></div>
-          <div class="field"><label>Loại báo cáo</label><select id="dlReportType" onchange="filterDownloadData()"><option value="ALL">ALL</option></select></div>
+          <div class="field"><label>Loại báo cáo</label><select id="dlReportType" onchange="filterDownloadData(true)"><option value="ALL">ALL</option></select></div>
           <div class="field"><label>Từ ngày</label><input type="date" id="dlFromDate"></div>
           <div class="field"><label>Đến ngày</label><input type="date" id="dlToDate"></div>
           <div class="field"><label>Tìm toàn dòng dữ liệu</label><input id="dlKeyword" placeholder="Mã vận đơn / tuyến / trạng thái..."></div>
         </div>
         <div class="actions">
-          <button class="btn dark" onclick="filterDownloadData()">🔍 XEM DATA</button>
+          <button class="btn dark" onclick="filterDownloadData(true)">🔍 XEM DATA</button>
           <button class="btn blue" onclick="exportToExcel()">📥 XUẤT EXCEL (.XLSX)</button>
           <button class="btn light" onclick="exportCSV()">📄 XUẤT CSV</button>
         </div>
+        <div class="notice">🔥 Dữ liệu lấy trực tiếp từ Firebase Firestore. Mỗi lần tải tối đa 300 dòng gần nhất theo Kho/Loại báo cáo đã chọn, ngày/từ khóa được lọc thêm phía trình duyệt — bấm "Tải thêm" nếu cần dữ liệu cũ hơn trước khi xuất Excel/CSV.</div>
       </div>
       <div class="section">
         <h3 class="section-title">📋 KẾT QUẢ: <span id="previewCount">0</span> dòng &nbsp; <span style="font-weight:400;font-size:13px;">(SSM / SGNSS có quyền sửa dữ liệu)</span></h3>
         <div class="table-wrap"><table id="dlResultTable"><thead><tr></tr></thead><tbody></tbody></table></div>
+        <div class="actions"><button class="btn light" id="btnLoadMoreDl" style="display:none" onclick="loadMoreDownload()">⬇️ Tải thêm 300 dòng</button></div>
       </div>
     </section>
     <!-- VIEW TAB -->
@@ -260,7 +275,7 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
       <div id="subViewReport">
         <div class="section">
           <div class="grid grid-3">
-            <div class="field"><label>Kho</label><select id="rptWarehouse" onchange="renderDashboard()"></select></div>
+            <div class="field"><label>Kho</label><select id="rptWarehouse" onchange="attachDashboardListener()"></select></div>
             <div class="field"><label>Khoảng thời gian</label><select id="rptTimeRange" onchange="renderDashboard()"><option value="TODAY">Hôm nay (Daily)</option><option value="WEEK">Tuần này (Weekly)</option><option value="MONTH">Tháng này (Monthly)</option><option value="MTD" selected>MTD</option><option value="YTD">YTD</option><option value="QUARTER">Theo Quý</option></select></div>
             <div class="field"><label>Quý</label><select id="rptQuarter" onchange="renderDashboard()"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></div>
           </div>
@@ -272,6 +287,7 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
           <div class="kpi"><div class="kpi-label">Số loại báo cáo</div><div class="kpi-value" id="kpiReportTypes">0</div><div class="kpi-sub">Đã nộp trong kỳ</div></div>
           <div class="kpi"><div class="kpi-label">Chỉnh sửa quá hạn</div><div class="kpi-value" id="kpiLateAdjust">0</div><div class="kpi-sub">Theo quy tắc SGNSS</div></div>
         </div>
+        <div class="notice">🔥 Báo cáo cập nhật trực tuyến theo thời gian thực từ Firebase (tối đa 1000 bản ghi gần nhất theo Kho đã chọn).</div>
         <div class="section"><h3 class="section-title">📊 SỐ LƯỢNG BÁO CÁO THEO KHO</h3><div id="warehouseChart" class="chart"></div></div>
         <div class="section"><h3 class="section-title">🏆 PERFORMANCE THEO KHO</h3><div class="table-wrap"><table><thead><tr><th>Kho</th><th>Dòng dữ liệu</th><th>Tỷ lệ KPI</th></tr></thead><tbody id="warehouseKpiBody"></tbody></table></div></div>
       </div>
@@ -424,16 +440,27 @@ th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:900;color:#475
 </div>
 <div id="toast" class="toast"></div>
 <script>
-// ==================== CONSTANTS ====================
-const KEY = 'SFEXPRESS_DB_V3';
+// ==================== FIREBASE CONFIG ====================
+const firebaseConfig = {
+  apiKey: "AIzaSyCVUnqrujtB2ajoCLS2MIb3J3hcBUgl-4g",
+  authDomain: "sfexpress-database.firebaseapp.com",
+  projectId: "sfexpress-database",
+  storageBucket: "sfexpress-database.firebasestorage.app",
+  messagingSenderId: "422746469770",
+  appId: "1:422746469770:web:7289a5b07f0832604b0473",
+  measurementId: "G-42HZEVBZCS"
+};
+firebase.initializeApp(firebaseConfig);
+const fdb = firebase.firestore();
+const fauth = firebase.auth();
 
+// ==================== DEFAULT SEED DATA ====================
 const DEFAULT_WAREHOUSES = [
   {code:'SGN01S', name:'Kho SGN01S'},
   {code:'SGN02S', name:'Kho SGN02S'},
   {code:'SGN03S', name:'Kho SGN03S'},
   {code:'SGN04S', name:'Kho SGN04S'}
 ];
-
 const DEFAULT_REPORT_CATEGORIES = {
   PU: [
     {id:'pu_sl_xuat', name:'BC Sản lượng hàng xuất (PU)', columns:['STT','Ngày (dd-mmm-yy)','Mã vận đơn (SFxx)','ID NV PU','Giờ nhập','CP Detain']},
@@ -448,80 +475,58 @@ const DEFAULT_REPORT_CATEGORIES = {
     {id:'tc_lich_trinh', name:'BC Lịch trình xe trung chuyển', columns:['STT','Biển số','Tuyến','Giờ xuất','Giờ nhập','Ghi chú']}
   ]
 };
-
 const DEFAULT_EMPLOYEES = [
-  {id:'e1', empId:'WA001', name:'Nguyễn Văn An', role:'WA', warehouse:'SGN01S', password:'12345', status:'active', startDate:'2024-01-15', leaveDate:'', zone:''},
-  {id:'e2', empId:'SSM001', name:'Trần Thị Bình', role:'SSM', warehouse:'SGN01S', password:'12345', status:'active', startDate:'2023-06-01', leaveDate:'', zone:''},
-  {id:'e3', empId:'WA002', name:'Lê Thị Sang', role:'WA', warehouse:'SGN02S', password:'12345', status:'active', startDate:'2024-03-10', leaveDate:'', zone:''},
-  {id:'e4', empId:'SSM002', name:'Phạm Văn Bảo', role:'SSM', warehouse:'SGN03S', password:'12345', status:'active', startDate:'2022-09-01', leaveDate:'', zone:''},
-  {id:'e5', empId:'VAN001', name:'Lê Văn Cường', role:'VAN', warehouse:'SGN02S', password:'', status:'active', startDate:'2022-03-10', leaveDate:'', zone:'Quận 1, Quận 3'},
-  {id:'e6', empId:'BA001', name:'Phạm Thị Duyên', role:'BA', warehouse:'SGN03S', password:'', status:'active', startDate:'2021-11-20', leaveDate:'', zone:'Bình Thạnh, Thủ Đức'}
+  {empId:'WA001', name:'Nguyễn Văn An', role:'WA', warehouse:'SGN01S', password:'12345', status:'active', startDate:'2024-01-15', leaveDate:'', zone:''},
+  {empId:'SSM001', name:'Trần Thị Bình', role:'SSM', warehouse:'SGN01S', password:'12345', status:'active', startDate:'2023-06-01', leaveDate:'', zone:''},
+  {empId:'WA002', name:'Lê Thị Sang', role:'WA', warehouse:'SGN02S', password:'12345', status:'active', startDate:'2024-03-10', leaveDate:'', zone:''},
+  {empId:'SSM002', name:'Phạm Văn Bảo', role:'SSM', warehouse:'SGN03S', password:'12345', status:'active', startDate:'2022-09-01', leaveDate:'', zone:''},
+  {empId:'VAN001', name:'Lê Văn Cường', role:'VAN', warehouse:'SGN02S', password:'', status:'active', startDate:'2022-03-10', leaveDate:'', zone:'Quận 1, Quận 3'},
+  {empId:'BA001', name:'Phạm Thị Duyên', role:'BA', warehouse:'SGN03S', password:'', status:'active', startDate:'2021-11-20', leaveDate:'', zone:'Bình Thạnh, Thủ Đức'}
 ];
-
 const DEFAULT_SGNSS = {username:'SGNSS', password:'SGNSS@2026'};
+const DEFAULT_CONFIG = {maxAdjustMinutes:60, penalty:15, approval:'Tự động chấp nhận trong thời hạn', deadlines:{}, grace:{}};
 
-const DEFAULT_CONFIG = {
-  maxAdjustMinutes:60, penalty:15, approval:'Tự động chấp nhận trong thời hạn',
-  deadlines:{}, grace:{}
+// ==================== STATE (local cache kept live via onSnapshot) ====================
+let state = {
+  warehouses: [],
+  employees: [],
+  reportCategories: {PU:[],DE:[],TC:[]},
+  config: JSON.parse(JSON.stringify(DEFAULT_CONFIG)),
+  sgnss: JSON.parse(JSON.stringify(DEFAULT_SGNSS))
 };
-
-const SEED_RECORDS = [
-  {id:'seed1', date:'2026-08-31', warehouse:'SGN01S', category:'PU', reportType:'pu_sl_xuat', empId:'WA001', empName:'Nguyễn Văn An',
-    values:['1','31-Aug-26','SF100293841','WA001','09:45','120'], status:'Đã nộp', submittedAt:'2026-08-31T09:45', adjustments:[], edits:[]},
-  {id:'seed2', date:'2026-08-31', warehouse:'SGN02S', category:'DE', reportType:'de_sl_nhap', empId:'WA002', empName:'Lê Thị Sang',
-    values:['1','31-Aug-26','SF100293842','WA002','09:50','0'], status:'Đã nộp', submittedAt:'2026-08-31T09:50', adjustments:[], edits:[]},
-  {id:'seed3', date:'2026-08-31', warehouse:'SGN03S', category:'TC', reportType:'tc_lich_trinh', empId:'WA001', empName:'Nguyễn Văn An',
-    values:['1','51A-123.45','Bình Thạnh','07:00','10:10',''], status:'Đã nộp', submittedAt:'2026-08-31T10:10', adjustments:[], edits:[]}
-];
-
-// ==================== STATE ====================
-let db = loadDB();
-let currentUser = null; // {empId, name, role, warehouse}
+let currentUser = null;
 let editRecordId = null;
 let editingEmployeeId = null;
+let unsub = {}; // named unsubscribe functions for live listeners
+let listenersReady = {warehouses:false, employees:false, reportCategories:false, config:false, sgnss:false};
+let metaReadyResolvers = [];
+let perfRowsCache = [];
+let dlRowsCache = [];
+let dlLastDoc = null;
+let dashRowsCache = [];
 
-// ==================== DB HELPERS ====================
-function normalizeDB(x){
-  return {
-    warehouses: (x.warehouses && x.warehouses.length) ? x.warehouses : JSON.parse(JSON.stringify(DEFAULT_WAREHOUSES)),
-    employees: (x.employees && x.employees.length) ? x.employees : JSON.parse(JSON.stringify(DEFAULT_EMPLOYEES)),
-    sgnss: x.sgnss || JSON.parse(JSON.stringify(DEFAULT_SGNSS)),
-    reportCategories: x.reportCategories || JSON.parse(JSON.stringify(DEFAULT_REPORT_CATEGORIES)),
-    records: x.records || JSON.parse(JSON.stringify(SEED_RECORDS)),
-    staffLog: x.staffLog || {},
-    config: x.config || JSON.parse(JSON.stringify(DEFAULT_CONFIG))
-  };
-}
-function loadDB(){
-  try{
-    const x = JSON.parse(localStorage.getItem(KEY));
-    if(x) return normalizeDB(x);
-  }catch(e){}
-  return normalizeDB({});
-}
-function persist(){ localStorage.setItem(KEY, JSON.stringify(db)); }
-function uuid(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'id_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2); }
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+// ==================== HELPERS ====================
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 function today(){ return new Date().toISOString().slice(0,10); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function setConnStatus(text, cls){
+  const el = document.getElementById('connStatus');
+  el.textContent = text;
+  el.className = cls||'';
+}
 
 // ==================== REPORT TYPE HELPERS ====================
 function findTypeById(id){
   for(const cat of ['PU','DE','TC']){
-    const t = (db.reportCategories[cat]||[]).find(x=>x.id===id);
+    const t = (state.reportCategories[cat]||[]).find(x=>x.id===id);
     if(t) return {...t, category:cat};
   }
   return null;
 }
-function allTypesFlat(){
-  let out = [];
-  ['PU','DE','TC'].forEach(cat=>{ (db.reportCategories[cat]||[]).forEach(t=> out.push({...t, category:cat})); });
-  return out;
-}
 function reportDisplayName(id){ const t=findTypeById(id); return t ? ('['+t.category+'] '+t.name) : id; }
 function getColumns(id){ const t=findTypeById(id); return t ? t.columns : []; }
-function deadlineFor(wh, rt){ const d=db.config.deadlines; if(d && d[wh] && d[wh][rt]) return d[wh][rt]; return '10:00'; }
-function graceFor(wh, rt){ const g=db.config.grace; if(g && g[wh] && g[wh][rt]!==undefined) return g[wh][rt]; return 15; }
+function deadlineFor(wh, rt){ const d=state.config.deadlines; if(d && d[wh] && d[wh][rt]) return d[wh][rt]; return '10:00'; }
+function graceFor(wh, rt){ const g=state.config.grace; if(g && g[wh] && g[wh][rt]!==undefined) return g[wh][rt]; return 15; }
 function statusFor(r){
   const dl = deadlineFor(r.warehouse, r.reportType);
   const sent = new Date(r.submittedAt);
@@ -537,6 +542,113 @@ function reportCode(){
   return g1||g2||g3||'';
 }
 
+// ==================== BOOTSTRAP / FIREBASE CONNECTION ====================
+function markReady(key){
+  listenersReady[key]=true;
+  if(Object.values(listenersReady).every(Boolean)){
+    metaReadyResolvers.forEach(fn=>fn());
+    metaReadyResolvers=[];
+  }
+}
+function waitForInitialMeta(){
+  return new Promise(resolve=>{
+    if(Object.values(listenersReady).every(Boolean)){ resolve(); return; }
+    metaReadyResolvers.push(resolve);
+  });
+}
+async function ensureSeedData(){
+  const whRef = fdb.collection('meta').doc('warehouses');
+  const whDoc = await whRef.get();
+  if(!whDoc.exists) await whRef.set({list: JSON.parse(JSON.stringify(DEFAULT_WAREHOUSES))});
+
+  const rcRef = fdb.collection('meta').doc('reportCategories');
+  const rcDoc = await rcRef.get();
+  if(!rcDoc.exists) await rcRef.set(JSON.parse(JSON.stringify(DEFAULT_REPORT_CATEGORIES)));
+
+  const cfgRef = fdb.collection('meta').doc('config');
+  const cfgDoc = await cfgRef.get();
+  if(!cfgDoc.exists) await cfgRef.set(JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
+
+  const sgnssRef = fdb.collection('meta').doc('sgnss');
+  const sgnssDoc = await sgnssRef.get();
+  if(!sgnssDoc.exists) await sgnssRef.set(JSON.parse(JSON.stringify(DEFAULT_SGNSS)));
+
+  const empSnap = await fdb.collection('employees').limit(1).get();
+  if(empSnap.empty){
+    const batch = fdb.batch();
+    DEFAULT_EMPLOYEES.forEach(e=>{
+      const ref = fdb.collection('employees').doc(e.empId);
+      const {empId, ...rest} = e;
+      batch.set(ref, rest);
+    });
+    await batch.commit();
+  }
+}
+function attachMetaListeners(){
+  unsub.warehouses = fdb.collection('meta').doc('warehouses').onSnapshot(doc=>{
+    state.warehouses = (doc.data()||{}).list || [];
+    markReady('warehouses');
+    onMetaChanged();
+  }, err=>{ console.error(err); toast('⚠️ Lỗi đồng bộ danh sách kho: '+err.message); });
+  unsub.employees = fdb.collection('employees').onSnapshot(snap=>{
+    state.employees = snap.docs.map(d=>({empId:d.id, ...d.data()}));
+    markReady('employees');
+    onMetaChanged();
+  }, err=>{ console.error(err); toast('⚠️ Lỗi đồng bộ nhân sự: '+err.message); });
+  unsub.reportCategories = fdb.collection('meta').doc('reportCategories').onSnapshot(doc=>{
+    state.reportCategories = doc.data() || {PU:[],DE:[],TC:[]};
+    markReady('reportCategories');
+    onMetaChanged();
+  }, err=>{ console.error(err); toast('⚠️ Lỗi đồng bộ cấu hình báo cáo: '+err.message); });
+  unsub.config = fdb.collection('meta').doc('config').onSnapshot(doc=>{
+    state.config = doc.data() || JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    markReady('config');
+    onMetaChanged();
+  }, err=>{ console.error(err); toast('⚠️ Lỗi đồng bộ cấu hình chung: '+err.message); });
+  unsub.sgnss = fdb.collection('meta').doc('sgnss').onSnapshot(doc=>{
+    state.sgnss = doc.data() || JSON.parse(JSON.stringify(DEFAULT_SGNSS));
+    markReady('sgnss');
+  }, err=>{ console.error(err); toast('⚠️ Lỗi đồng bộ tài khoản SGNSS: '+err.message); });
+}
+function onMetaChanged(){
+  if(!currentUser) return;
+  populateAllDependentSelects();
+  updateColumnNames();
+  if(currentUser.role==='SGNSS'){
+    renderEmployeeTable(); renderWarehouseList(); ['PU','DE','TC'].forEach(renderReportCategoryList);
+    loadConfigForm(); renderSetupDashboard();
+  }
+}
+async function bootstrapFirebase(){
+  setConnStatus('🔄 Đang kết nối...', '');
+  try{
+    await fauth.signInAnonymously();
+  }catch(e){
+    setConnStatus('❌ Lỗi Auth', 'err');
+    showBootError('Không thể xác thực Firebase (Anonymous Auth): '+e.message+'\n\nKiểm tra: Firebase Console → Authentication → Sign-in method → đã bật "Anonymous" chưa.');
+    return;
+  }
+  try{
+    await ensureSeedData();
+    attachMetaListeners();
+    await waitForInitialMeta();
+  }catch(e){
+    setConnStatus('❌ Lỗi Firestore', 'err');
+    showBootError('Không thể đọc/ghi Firestore: '+e.message+'\n\nKiểm tra: đã tạo Firestore Database (Native mode) và Security Rules cho phép request.auth != null chưa.');
+    return;
+  }
+  setConnStatus('🟢 Online', 'ok');
+  document.getElementById('bootLoadingMsg').style.display='none';
+  document.getElementById('loginFormFields').style.display='block';
+  document.getElementById('loginUser').focus();
+}
+function showBootError(msg){
+  document.getElementById('bootLoadingMsg').style.display='none';
+  const el = document.getElementById('bootErrorMsg');
+  el.textContent = '⚠️ '+msg;
+  el.style.display='block';
+}
+
 // ==================== LOGIN / LOGOUT / PASSWORD ====================
 function doLogin(){
   const user = document.getElementById('loginUser').value.trim();
@@ -544,23 +656,25 @@ function doLogin(){
   const errEl = document.getElementById('loginError');
   errEl.classList.remove('show');
   if(!user || !pass){ errEl.textContent='⚠️ Vui lòng nhập tài khoản và mật khẩu.'; errEl.classList.add('show'); return; }
-  if(user.toUpperCase() === (db.sgnss.username||'SGNSS').toUpperCase()){
-    if(pass === db.sgnss.password){
-      currentUser = {empId:db.sgnss.username, name:'Quản trị SGNSS', role:'SGNSS', warehouse:null};
+  if(user.toUpperCase() === (state.sgnss.username||'SGNSS').toUpperCase()){
+    if(pass === state.sgnss.password){
+      currentUser = {empId:state.sgnss.username, name:'Quản trị SGNSS', role:'SGNSS', warehouse:null};
       enterApp();
-    } else {
-      errEl.textContent = '⚠️ Sai mật khẩu SGNSS.'; errEl.classList.add('show');
-    }
+    } else { errEl.textContent='⚠️ Sai mật khẩu SGNSS.'; errEl.classList.add('show'); }
     return;
   }
-  const emp = db.employees.find(e => e.empId.toUpperCase()===user.toUpperCase() && (e.role==='WA'||e.role==='SSM'));
+  const emp = state.employees.find(e => e.empId.toUpperCase()===user.toUpperCase() && (e.role==='WA'||e.role==='SSM'));
   if(!emp){ errEl.textContent='⚠️ Tài khoản không tồn tại hoặc không có quyền đăng nhập.'; errEl.classList.add('show'); return; }
   if(emp.status !== 'active'){ errEl.textContent='⚠️ Tài khoản đã nghỉ việc, không thể đăng nhập.'; errEl.classList.add('show'); return; }
   if(emp.password !== pass){ errEl.textContent='⚠️ Sai mật khẩu.'; errEl.classList.add('show'); return; }
   currentUser = {empId:emp.empId, name:emp.name, role:emp.role, warehouse:emp.warehouse};
   enterApp();
 }
+function detachTabListeners(){
+  ['performance','download','dashboard'].forEach(k=>{ if(unsub[k]){ unsub[k](); unsub[k]=null; } });
+}
 function doLogout(){
+  detachTabListeners();
   currentUser = null;
   document.getElementById('mainApp').style.display='none';
   document.getElementById('loginOverlay').classList.remove('hidden');
@@ -572,23 +686,24 @@ function openChangePassword(){
   document.getElementById('changePasswordModal').classList.add('show');
 }
 function closeChangePassword(){ document.getElementById('changePasswordModal').classList.remove('show'); }
-function saveChangePassword(){
+async function saveChangePassword(){
   const oldP=document.getElementById('cpOld').value;
   const newP=document.getElementById('cpNew').value;
   const confirmP=document.getElementById('cpConfirm').value;
   if(!newP || newP.length<4){ toast('⚠️ Mật khẩu mới phải từ 4 ký tự'); return; }
   if(newP!==confirmP){ toast('⚠️ Xác nhận mật khẩu không khớp'); return; }
-  if(currentUser.role==='SGNSS'){
-    if(oldP !== db.sgnss.password){ toast('⚠️ Sai mật khẩu hiện tại'); return; }
-    db.sgnss.password = newP;
-  } else {
-    const e = db.employees.find(x=>x.empId===currentUser.empId);
-    if(!e || oldP !== e.password){ toast('⚠️ Sai mật khẩu hiện tại'); return; }
-    e.password = newP;
-  }
-  persist();
-  closeChangePassword();
-  toast('✓ Đã đổi mật khẩu thành công');
+  try{
+    if(currentUser.role==='SGNSS'){
+      if(oldP !== state.sgnss.password){ toast('⚠️ Sai mật khẩu hiện tại'); return; }
+      await fdb.collection('meta').doc('sgnss').set({username: state.sgnss.username, password:newP});
+    } else {
+      const emp = state.employees.find(x=>x.empId===currentUser.empId);
+      if(!emp || oldP !== emp.password){ toast('⚠️ Sai mật khẩu hiện tại'); return; }
+      await fdb.collection('employees').doc(currentUser.empId).update({password:newP});
+    }
+    closeChangePassword();
+    toast('✓ Đã đổi mật khẩu thành công');
+  }catch(e){ toast('⚠️ Lỗi đổi mật khẩu: '+e.message); }
 }
 
 // ==================== ENTER APP / PERMISSIONS ====================
@@ -605,9 +720,9 @@ function enterApp(){
   populateAllDependentSelects();
   loadWarehouseDay();
   updateColumnNames();
-  renderPerformance();
-  filterDownloadData();
-  renderDashboard();
+  attachPerformanceListener();
+  filterDownloadData(true);
+  attachDashboardListener();
   if(currentUser.role==='SGNSS'){
     renderEmployeeTable();
     renderWarehouseList();
@@ -632,7 +747,6 @@ function applyTabPermissions(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   const btnMap={uploadTab:uploadBtn, downloadTab:downloadBtn, viewTab:viewBtn};
   btnMap[target].classList.add('active');
-  // reset view subtab to report view (not setup) on fresh login
   document.querySelectorAll('#viewTab > div[id^="sub"]').forEach(x=>x.style.display='none');
   document.getElementById('subViewReport').style.display='block';
   document.querySelectorAll('.subtab').forEach(x=>x.classList.remove('active'));
@@ -645,8 +759,6 @@ function switchTab(id, btn){
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   btn.classList.add('active');
-  if(id==='downloadTab') filterDownloadData();
-  if(id==='viewTab') renderDashboard();
 }
 function switchSubTab(id, btn){
   if(id==='subAdminSetup' && currentUser.role!=='SGNSS'){ toast('⚠️ Bạn không có quyền truy cập mục này'); return; }
@@ -679,16 +791,16 @@ function populateWarehouseSelects(){
     if(!sel) return;
     if(id==='cfgWarehouse'){
       const cur=sel.value;
-      sel.innerHTML = db.warehouses.map(w=>'<option value="'+esc(w.code)+'">'+esc(w.code)+' - '+esc(w.name)+'</option>').join('');
-      if(cur && db.warehouses.some(w=>w.code===cur)) sel.value=cur;
+      sel.innerHTML = state.warehouses.map(w=>'<option value="'+esc(w.code)+'">'+esc(w.code)+' - '+esc(w.name)+'</option>').join('');
+      if(cur && state.warehouses.some(w=>w.code===cur)) sel.value=cur;
       return;
     }
     const withAll = (id==='dlWarehouse' || id==='rptWarehouse');
     if(currentUser.role==='SGNSS'){
       const cur=sel.value;
-      sel.innerHTML = (withAll?'<option value="ALL">ALL</option>':'') + db.warehouses.map(w=>'<option value="'+esc(w.code)+'">'+esc(w.code)+'</option>').join('');
+      sel.innerHTML = (withAll?'<option value="ALL">ALL</option>':'') + state.warehouses.map(w=>'<option value="'+esc(w.code)+'">'+esc(w.code)+'</option>').join('');
       sel.disabled=false;
-      if(cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur; else sel.value = withAll?'ALL':(db.warehouses[0]?db.warehouses[0].code:'');
+      if(cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur; else sel.value = withAll?'ALL':(state.warehouses[0]?state.warehouses[0].code:'');
     } else {
       sel.innerHTML = '<option value="'+esc(currentUser.warehouse)+'">'+esc(currentUser.warehouse)+'</option>';
       sel.value = currentUser.warehouse;
@@ -702,8 +814,8 @@ function populateCategorySelects(){
     const cat=map[selId];
     const sel=document.getElementById(selId);
     const cur=sel.value;
-    sel.innerHTML = '<option value="">-- Chọn --</option>' + (db.reportCategories[cat]||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');
-    if(cur && (db.reportCategories[cat]||[]).some(t=>t.id===cur)) sel.value=cur;
+    sel.innerHTML = '<option value="">-- Chọn --</option>' + (state.reportCategories[cat]||[]).map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');
+    if(cur && (state.reportCategories[cat]||[]).some(t=>t.id===cur)) sel.value=cur;
   });
 }
 function populateDlReportTypeSelect(){
@@ -711,7 +823,7 @@ function populateDlReportTypeSelect(){
   const cur=sel.value;
   let html='<option value="ALL">ALL</option>';
   ['PU','DE','TC'].forEach(cat=>{
-    const types = db.reportCategories[cat]||[];
+    const types = state.reportCategories[cat]||[];
     if(types.length){ html += '<optgroup label="'+cat+'">' + types.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('') + '</optgroup>'; }
   });
   sel.innerHTML = html;
@@ -723,7 +835,7 @@ function populateCfgReportTypeSelect(){
   const cur=sel.value;
   let html='<option value="">-- Chọn --</option>';
   ['PU','DE','TC'].forEach(cat=>{
-    const types = db.reportCategories[cat]||[];
+    const types = state.reportCategories[cat]||[];
     if(types.length){ html += '<optgroup label="'+cat+'">' + types.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('') + '</optgroup>'; }
   });
   sel.innerHTML = html;
@@ -733,14 +845,14 @@ function populateEmpWarehouseSelect(){
   const sel=document.getElementById('empFormWarehouse');
   if(!sel) return;
   const cur=sel.value;
-  sel.innerHTML = db.warehouses.map(w=>'<option value="'+esc(w.code)+'">'+esc(w.code)+' - '+esc(w.name)+'</option>').join('');
-  if(cur && db.warehouses.some(w=>w.code===cur)) sel.value=cur;
+  sel.innerHTML = state.warehouses.map(w=>'<option value="'+esc(w.code)+'">'+esc(w.code)+' - '+esc(w.name)+'</option>').join('');
+  if(cur && state.warehouses.some(w=>w.code===cur)) sel.value=cur;
 }
 function updateBadges(){
   const container=document.getElementById('badgeContainer');
-  const visibleWhs = currentUser.role==='SGNSS' ? db.warehouses.map(w=>w.code) : [currentUser.warehouse];
+  const visibleWhs = currentUser.role==='SGNSS' ? state.warehouses.map(w=>w.code) : [currentUser.warehouse];
   container.innerHTML = visibleWhs.map(code=>{
-    const staff = db.employees.filter(e=>e.warehouse===code && e.status==='active');
+    const staff = state.employees.filter(e=>e.warehouse===code && e.status==='active');
     const ok = staff.length>0;
     return '<div class="badge '+(ok?'ok':'bad')+'" data-wh="'+esc(code)+'">'+esc(code)+'<span>Kho '+esc(code)+': '+staff.length+' nhân sự đang hoạt động.</span></div>';
   }).join('');
@@ -764,8 +876,7 @@ function updatePlaceholder(){
   const ta = document.getElementById('pastedText');
   if(code){
     const cols = getColumns(code);
-    const sample = cols.join('\t');
-    ta.placeholder = '📋 ' + sample + '\n\nDán dữ liệu Excel vào đây (mỗi dòng là 1 bản ghi, các cột cách nhau bởi TAB hoặc dấu phẩy)';
+    ta.placeholder = '📋 ' + cols.join('\t') + '\n\nDán dữ liệu Excel vào đây (mỗi dòng là 1 bản ghi, các cột cách nhau bởi TAB hoặc dấu phẩy)';
   } else {
     ta.placeholder = 'Vui lòng chọn loại báo cáo ở trên trước khi dán dữ liệu.';
   }
@@ -780,26 +891,32 @@ function onReportTypeChange(changedId){
   updateColumnNames();
 }
 
-// ==================== STAFF MODAL (DAILY ATTENDANCE) ====================
+// ==================== STAFF MODAL (DAILY ATTENDANCE) — Firestore doc per wh_date ====================
 function openStaffModal(){ loadWarehouseDay(); document.getElementById('staffModal').classList.add('show'); }
 function closeStaffModal(){ document.getElementById('staffModal').classList.remove('show'); }
-function loadWarehouseDay(){
+async function loadWarehouseDay(){
   const wh = document.getElementById('warehouseSelect').value;
   const date = document.getElementById('checkDate').value;
-  const s = db.staffLog[wh+'_'+date] || {ssm:0, ba:0, van:0, wa:0, leave:'', anomaly:'Không có bất thường'};
-  document.getElementById('inputSSM').value = s.ssm||0;
-  document.getElementById('inputBA').value = s.ba||0;
-  document.getElementById('inputVAN').value = s.van||0;
-  document.getElementById('inputWA').value = s.wa||0;
-  document.getElementById('inputLeaveStaff').value = s.leave||'';
-  document.getElementById('inputAnomaly').value = s.anomaly||'';
-  document.getElementById('headcountSummaryDisplay').innerHTML = '👥 NS đi làm '+esc(wh)+': SSM('+(s.ssm||0)+') · WA('+(s.wa||0)+') · VAN('+(s.van||0)+') · BA('+(s.ba||0)+')';
-  document.getElementById('anomalyDisplay').innerHTML = '⚠️ Bất thường: '+esc(s.anomaly||'Không có');
+  if(!wh || !date) return;
+  document.getElementById('headcountSummaryDisplay').textContent = 'Đang tải...';
+  document.getElementById('anomalyDisplay').textContent = 'Đang tải...';
+  try{
+    const doc = await fdb.collection('staffLog').doc(wh+'_'+date).get();
+    const s = doc.exists ? doc.data() : {ssm:0, ba:0, van:0, wa:0, leave:'', anomaly:'Không có bất thường'};
+    document.getElementById('inputSSM').value = s.ssm||0;
+    document.getElementById('inputBA').value = s.ba||0;
+    document.getElementById('inputVAN').value = s.van||0;
+    document.getElementById('inputWA').value = s.wa||0;
+    document.getElementById('inputLeaveStaff').value = s.leave||'';
+    document.getElementById('inputAnomaly').value = s.anomaly||'';
+    document.getElementById('headcountSummaryDisplay').innerHTML = '👥 NS đi làm '+esc(wh)+': SSM('+(s.ssm||0)+') · WA('+(s.wa||0)+') · VAN('+(s.van||0)+') · BA('+(s.ba||0)+')';
+    document.getElementById('anomalyDisplay').innerHTML = '⚠️ Bất thường: '+esc(s.anomaly||'Không có');
+  }catch(e){ toast('⚠️ Lỗi tải dữ liệu nhân sự: '+e.message); }
 }
-function saveStaffInfo(){
+async function saveStaffInfo(){
   const wh = document.getElementById('warehouseSelect').value;
   const date = document.getElementById('checkDate').value;
-  db.staffLog[wh+'_'+date] = {
+  const payload = {
     ssm: +document.getElementById('inputSSM').value||0,
     ba: +document.getElementById('inputBA').value||0,
     van: +document.getElementById('inputVAN').value||0,
@@ -807,15 +924,17 @@ function saveStaffInfo(){
     leave: document.getElementById('inputLeaveStaff').value,
     anomaly: document.getElementById('inputAnomaly').value
   };
-  persist();
-  loadWarehouseDay();
-  closeStaffModal();
-  toast('✓ Đã lưu thông tin nhân sự & bất thường');
+  try{
+    await fdb.collection('staffLog').doc(wh+'_'+date).set(payload);
+    await loadWarehouseDay();
+    closeStaffModal();
+    toast('✓ Đã lưu thông tin nhân sự & bất thường');
+  }catch(e){ toast('⚠️ Lỗi lưu: '+e.message); }
 }
 
 // ==================== CLEAR PASTE / SUBMIT REPORT ====================
 function clearPaste(){ document.getElementById('pastedText').value=''; toast('🧹 Đã xóa nội dung'); }
-function submitReportData(){
+async function submitReportData(){
   const ta=document.getElementById('pastedText');
   const text=ta.value.trim();
   if(!text){ toast('⚠️ Vui lòng dán dữ liệu báo cáo'); return; }
@@ -827,28 +946,43 @@ function submitReportData(){
   const wh = document.getElementById('warehouseSelect').value;
   const date = document.getElementById('checkDate').value;
   const rows = text.split(/\r?\n/).filter(Boolean).map(line=>line.split(/\t|,/).map(x=>x.trim()));
-  const now = new Date();
-  const iso = now.toISOString().slice(0,16);
-  rows.forEach(a=>{
-    const values = [];
-    for(let i=0;i<ncols;i++) values.push(a[i]||'');
-    db.records.push({
-      id: uuid(), date, warehouse: wh, category: type.category, reportType: code,
-      empId: currentUser.empId, empName: currentUser.name,
-      values, status:'Đã nộp', submittedAt: iso, adjustments:[], edits:[]
+  const iso = new Date().toISOString().slice(0,16);
+  try{
+    const batch = fdb.batch();
+    rows.forEach(a=>{
+      const ref = fdb.collection('records').doc();
+      const values=[]; for(let i=0;i<ncols;i++) values.push(a[i]||'');
+      batch.set(ref, {
+        date, warehouse: wh, category: type.category, reportType: code,
+        empId: currentUser.empId, empName: currentUser.name,
+        values, status:'Đã nộp', submittedAt: iso, adjustments:[], edits:[]
+      });
     });
-  });
-  persist();
-  ta.value='';
-  renderPerformance();
-  renderDashboard();
-  toast('🚀 Đã lưu '+rows.length+' dòng dữ liệu cho '+reportDisplayName(code));
+    await batch.commit();
+    ta.value='';
+    toast('🚀 Đã đẩy '+rows.length+' dòng dữ liệu lên Firebase cho '+reportDisplayName(code));
+  }catch(e){ toast('⚠️ Lỗi đẩy dữ liệu lên Firebase: '+e.message); }
 }
 
-// ==================== TAB1: PERFORMANCE HISTORY ====================
-function renderPerformance(){
+// ==================== TAB1: PERFORMANCE HISTORY (live listener) ====================
+function attachPerformanceListener(){
+  if(unsub.performance) unsub.performance();
   const wh = document.getElementById('warehouseSelect').value;
-  const rows = db.records.filter(r=>r.warehouse===wh).slice().sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt)).slice(0,100);
+  if(!wh){ perfRowsCache=[]; renderPerformance(); return; }
+  unsub.performance = fdb.collection('records')
+    .where('warehouse','==',wh)
+    .orderBy('submittedAt','desc')
+    .limit(100)
+    .onSnapshot(snap=>{
+      perfRowsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderPerformance();
+    }, err=>{
+      console.error(err);
+      toast('⚠️ Lỗi tải lịch sử — có thể cần tạo Index Firestore (xem Console F12 để lấy link tạo index)');
+    });
+}
+function renderPerformance(){
+  const rows = perfRowsCache;
   const tbody = document.querySelector('#performanceTable tbody');
   if(!rows.length){ tbody.innerHTML='<tr><td colspan="8" class="empty">Chưa có dữ liệu</td></tr>'; return; }
   tbody.innerHTML = rows.map(r=>{
@@ -865,34 +999,52 @@ function renderPerformance(){
     '</tr>';
   }).join('');
 }
-function requestResubmit(id){
-  const r = db.records.find(x=>x.id===id);
+async function requestResubmit(id){
+  const r = perfRowsCache.find(x=>x.id===id) || dlRowsCache.find(x=>x.id===id);
   if(!r) return;
-  const reason = prompt('Nhập lý do xin chỉnh sửa (giới hạn '+db.config.maxAdjustMinutes+' phút từ lúc gửi):');
+  const reason = prompt('Nhập lý do xin chỉnh sửa (giới hạn '+state.config.maxAdjustMinutes+' phút từ lúc gửi):');
   if(!reason) return;
   const elapsed = Math.max(0, Math.round((Date.now()-new Date(r.submittedAt).getTime())/60000));
-  const within = elapsed <= db.config.maxAdjustMinutes;
-  r.adjustments = r.adjustments||[];
-  r.adjustments.push({reason, requestedAt:new Date().toISOString(), elapsed, within});
-  persist();
-  renderPerformance();
-  renderDashboard();
-  toast(within ? ('✓ Đã điều chỉnh trong '+elapsed+' phút - Đạt KPI') : ('❌ Chỉnh sửa sau '+elapsed+' phút - Trừ KPI'));
+  const within = elapsed <= state.config.maxAdjustMinutes;
+  try{
+    await fdb.collection('records').doc(r.id).update({
+      adjustments: firebase.firestore.FieldValue.arrayUnion({reason, requestedAt:new Date().toISOString(), elapsed, within})
+    });
+    toast(within ? ('✓ Đã điều chỉnh trong '+elapsed+' phút - Đạt KPI') : ('❌ Chỉnh sửa sau '+elapsed+' phút - Trừ KPI'));
+  }catch(e){ toast('⚠️ Lỗi lưu: '+e.message); }
 }
 
 // ==================== TAB2: DOWNLOAD / EDIT / EXPORT ====================
-function getFilteredDownload(){
+async function filterDownloadData(resetPagination){
   const wh=document.getElementById('dlWarehouse').value;
-  const emp=document.getElementById('dlEmpId').value.trim().toLowerCase();
   const rt=document.getElementById('dlReportType').value;
+  if(resetPagination){ dlRowsCache=[]; dlLastDoc=null; }
+  let q = fdb.collection('records');
+  if(wh && wh!=='ALL') q=q.where('warehouse','==',wh);
+  if(rt && rt!=='ALL') q=q.where('reportType','==',rt);
+  q = q.orderBy('submittedAt','desc').limit(300);
+  if(dlLastDoc) q = q.startAfter(dlLastDoc);
+  try{
+    const snap = await q.get();
+    const newRows = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    dlRowsCache = resetPagination ? newRows : dlRowsCache.concat(newRows);
+    dlLastDoc = snap.docs.length ? snap.docs[snap.docs.length-1] : dlLastDoc;
+    document.getElementById('btnLoadMoreDl').style.display = snap.docs.length===300 ? 'inline-block' : 'none';
+    renderDownloadTableFromCache();
+  }catch(e){
+    console.error(e);
+    toast('⚠️ Lỗi tải dữ liệu — có thể cần tạo Index Firestore (xem Console F12 để lấy link tạo index)');
+  }
+}
+function loadMoreDownload(){ filterDownloadData(false); }
+function getFilteredDownload(){
+  const emp=document.getElementById('dlEmpId').value.trim().toLowerCase();
   const from=document.getElementById('dlFromDate').value;
   const to=document.getElementById('dlToDate').value;
   const kw=document.getElementById('dlKeyword').value.trim().toLowerCase();
-  return db.records.filter(r=>{
+  return dlRowsCache.filter(r=>{
     if(currentUser.role!=='SGNSS' && r.warehouse!==currentUser.warehouse) return false;
-    if(wh!=='ALL' && r.warehouse!==wh) return false;
     if(emp && !(r.empId.toLowerCase().includes(emp) || r.empName.toLowerCase().includes(emp))) return false;
-    if(rt!=='ALL' && r.reportType!==rt) return false;
     if(from && r.date<from) return false;
     if(to && r.date>to) return false;
     if(kw){
@@ -907,7 +1059,7 @@ function currentDlColumnsMeta(){
   if(rt && rt!=='ALL'){ const t=findTypeById(rt); if(t) return t.columns; }
   return null;
 }
-function filterDownloadData(){
+function renderDownloadTableFromCache(){
   const rows = getFilteredDownload();
   document.getElementById('previewCount').textContent = rows.length;
   const cols = currentDlColumnsMeta();
@@ -941,7 +1093,7 @@ function filterDownloadData(){
   }).join('');
 }
 function openEditModal(id){
-  const r = db.records.find(x=>x.id===id);
+  const r = dlRowsCache.find(x=>x.id===id);
   if(!r){ toast('Không tìm thấy bản ghi'); return; }
   editRecordId = id;
   const t = findTypeById(r.reportType);
@@ -952,23 +1104,24 @@ function openEditModal(id){
   document.getElementById('editRecordModal').classList.add('show');
 }
 function closeEditModal(){ document.getElementById('editRecordModal').classList.remove('show'); editRecordId=null; }
-function saveEditRecord(){
+async function saveEditRecord(){
   if(!editRecordId) return;
-  const r = db.records.find(x=>x.id===editRecordId);
+  const r = dlRowsCache.find(x=>x.id===editRecordId);
   if(!r){ toast('Lỗi: không tìm thấy bản ghi'); return; }
   const reason = document.getElementById('editReason').value.trim();
   if(!reason){ toast('Vui lòng nhập lý do chỉnh sửa'); return; }
   const oldValues = r.values.slice();
   const newValues = oldValues.slice();
   document.querySelectorAll('#editFieldsContainer .edit-col-input').forEach(inp=>{ newValues[+inp.dataset.idx]=inp.value.trim(); });
-  r.values = newValues;
-  r.edits = r.edits||[];
-  r.edits.push({user: currentUser.empId, timestamp: new Date().toISOString(), reason, oldValues});
-  persist();
-  closeEditModal();
-  filterDownloadData();
-  renderPerformance();
-  toast('✓ Đã cập nhật bản ghi');
+  try{
+    await fdb.collection('records').doc(editRecordId).update({
+      values: newValues,
+      edits: firebase.firestore.FieldValue.arrayUnion({user: currentUser.empId, timestamp: new Date().toISOString(), reason, oldValues})
+    });
+    closeEditModal();
+    await filterDownloadData(true);
+    toast('✓ Đã cập nhật bản ghi');
+  }catch(e){ toast('⚠️ Lỗi lưu: '+e.message); }
 }
 function exportToExcel(){
   const rows = getFilteredDownload();
@@ -999,7 +1152,7 @@ function exportCSV(){
   a.href = URL.createObjectURL(blob); a.download='SF_Report_'+today()+'.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
 
-// ==================== TAB3: DASHBOARD ====================
+// ==================== TAB3: DASHBOARD (live listener) ====================
 function rangeDates(){
   const t=new Date(), y=t.getFullYear(), m=t.getMonth(), d=t.getDate(), type=document.getElementById('rptTimeRange').value;
   let start=new Date(y,m,d), end=new Date(y,m,d);
@@ -1009,21 +1162,35 @@ function rangeDates(){
   if(type==='QUARTER'){ const q=Number(document.getElementById('rptQuarter').value.slice(1)); start=new Date(y,(q-1)*3,1); end=new Date(y,q*3,0); }
   return [start.toISOString().slice(0,10), end.toISOString().slice(0,10)];
 }
+function attachDashboardListener(){
+  if(unsub.dashboard) unsub.dashboard();
+  const wh = document.getElementById('rptWarehouse').value;
+  let q = fdb.collection('records');
+  if(wh && wh!=='ALL') q = q.where('warehouse','==',wh);
+  q = q.orderBy('submittedAt','desc').limit(1000);
+  unsub.dashboard = q.onSnapshot(snap=>{
+    dashRowsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderDashboard();
+  }, err=>{
+    console.error(err);
+    toast('⚠️ Lỗi tải báo cáo thống kê — có thể cần tạo Index Firestore (xem Console F12)');
+  });
+}
 function renderDashboard(){
   const [from,to] = rangeDates();
   const wh = document.getElementById('rptWarehouse').value;
-  const rows = db.records.filter(r => (wh==='ALL'||r.warehouse===wh) && r.date>=from && r.date<=to && (currentUser.role==='SGNSS' || r.warehouse===currentUser.warehouse));
+  const rows = dashRowsCache.filter(r => (wh==='ALL'||r.warehouse===wh) && r.date>=from && r.date<=to && (currentUser.role==='SGNSS' || r.warehouse===currentUser.warehouse));
   const kpiRows = rows.length;
   const warehousesSubmitted = new Set(rows.map(r=>r.warehouse));
   const good = rows.filter(r=>statusFor(r)==='Đạt KPI').length;
   const distinctTypes = new Set(rows.map(r=>r.reportType)).size;
   const lateAdj = rows.reduce((s,r)=> s + (r.adjustments||[]).filter(a=>!a.within).length, 0);
   document.getElementById('kpiTotalRows').textContent = kpiRows.toLocaleString('vi-VN');
-  document.getElementById('kpiWhSubmitted').textContent = warehousesSubmitted.size + ' / ' + db.warehouses.length;
+  document.getElementById('kpiWhSubmitted').textContent = warehousesSubmitted.size + ' / ' + state.warehouses.length;
   document.getElementById('kpiSuccess').textContent = (kpiRows? good/kpiRows*100 : 0).toFixed(1)+'%';
   document.getElementById('kpiReportTypes').textContent = distinctTypes;
   document.getElementById('kpiLateAdjust').textContent = lateAdj;
-  const whs = currentUser.role==='SGNSS' ? db.warehouses.map(w=>w.code) : [currentUser.warehouse];
+  const whs = currentUser.role==='SGNSS' ? state.warehouses.map(w=>w.code) : [currentUser.warehouse];
   const stats = whs.map(w=>{
     const a = rows.filter(r=>r.warehouse===w);
     const g = a.filter(r=>statusFor(r)==='Đạt KPI').length;
@@ -1040,16 +1207,16 @@ function renderDashboard(){
 
 // ==================== ADMIN SETUP: DASHBOARD ====================
 function renderSetupDashboard(){
-  document.getElementById('setupTotalWarehouses').textContent = db.warehouses.length;
+  document.getElementById('setupTotalWarehouses').textContent = state.warehouses.length;
   const roles=['SSM','WA','VAN','BA'];
-  const activeEmp = db.employees.filter(e=>e.status==='active');
+  const activeEmp = state.employees.filter(e=>e.status==='active');
   document.getElementById('setupTotalStaff').textContent = activeEmp.length;
   document.getElementById('setupStaffSummary').innerHTML = roles.map(r=> r+': <b>'+activeEmp.filter(e=>e.role===r).length+'</b>').join(' &nbsp;·&nbsp; ');
-  const catCounts = {PU:(db.reportCategories.PU||[]).length, DE:(db.reportCategories.DE||[]).length, TC:(db.reportCategories.TC||[]).length};
+  const catCounts = {PU:(state.reportCategories.PU||[]).length, DE:(state.reportCategories.DE||[]).length, TC:(state.reportCategories.TC||[]).length};
   document.getElementById('setupTotalReports').textContent = catCounts.PU+catCounts.DE+catCounts.TC;
   document.getElementById('setupReportSummary').innerHTML = 'PU: <b>'+catCounts.PU+'</b> &nbsp;·&nbsp; DE: <b>'+catCounts.DE+'</b> &nbsp;·&nbsp; TC: <b>'+catCounts.TC+'</b>';
   const tbody = document.getElementById('setupWarehouseStaffBody');
-  tbody.innerHTML = db.warehouses.map(w=>{
+  tbody.innerHTML = state.warehouses.map(w=>{
     const emps = activeEmp.filter(e=>e.warehouse===w.code);
     const c = r=> emps.filter(e=>e.role===r).length;
     return '<tr><td><b>'+esc(w.code)+'</b></td><td>'+c('SSM')+'</td><td>'+c('WA')+'</td><td>'+c('VAN')+'</td><td>'+c('BA')+'</td></tr>';
@@ -1074,6 +1241,7 @@ function resetEmpForm(){
   editingEmployeeId = null;
   document.getElementById('empFormName').value='';
   document.getElementById('empFormId').value='';
+  document.getElementById('empFormId').disabled=false;
   document.getElementById('empFormRole').value='WA';
   document.getElementById('empFormPassword').value='';
   document.getElementById('empFormZone').value='';
@@ -1083,7 +1251,7 @@ function resetEmpForm(){
   onEmpRoleChange(); onEmpStatusChange();
   document.getElementById('empFormSubmitBtn').textContent='➕ Thêm nhân sự';
 }
-function addOrUpdateEmployee(){
+async function addOrUpdateEmployee(){
   const name=document.getElementById('empFormName').value.trim();
   const empId=document.getElementById('empFormId').value.trim().toUpperCase();
   const role=document.getElementById('empFormRole').value;
@@ -1095,28 +1263,31 @@ function addOrUpdateEmployee(){
   const leaveDate=document.getElementById('empFormLeaveDate').value;
   if(!name || !empId){ toast('⚠️ Vui lòng nhập đầy đủ Tên và Mã NV'); return; }
   if((role==='WA'||role==='SSM') && !editingEmployeeId && !password){ toast('⚠️ Vui lòng nhập mật khẩu ban đầu cho WA/SSM'); return; }
-  const dup = db.employees.find(e=> e.empId.toUpperCase()===empId && e.id!==editingEmployeeId);
-  if(dup){ toast('⚠️ Mã NV đã tồn tại'); return; }
-  if(editingEmployeeId){
-    const e = db.employees.find(x=>x.id===editingEmployeeId);
-    Object.assign(e, {name, empId, role, warehouse, zone, startDate, status, leaveDate: status==='inactive'?leaveDate:''});
-    if(password) e.password = password;
-    toast('✓ Đã cập nhật nhân sự');
-  } else {
-    db.employees.push({id:uuid(), empId, name, role, warehouse, password, status, startDate, leaveDate: status==='inactive'?leaveDate:'', zone});
-    toast('✓ Đã thêm nhân sự');
-  }
-  persist();
-  resetEmpForm();
-  renderEmployeeTable();
-  renderSetupDashboard();
-  populateAllDependentSelects();
+  try{
+    const ref = fdb.collection('employees').doc(empId);
+    if(!editingEmployeeId){
+      const existing = await ref.get();
+      if(existing.exists){ toast('⚠️ Mã NV đã tồn tại'); return; }
+      await ref.set({
+        name, role, warehouse, status, startDate, leaveDate: status==='inactive'?leaveDate:'', zone,
+        password: (role==='WA'||role==='SSM') ? password : ''
+      });
+      toast('✓ Đã thêm nhân sự');
+    } else {
+      const payload = {name, role, warehouse, status, startDate, leaveDate: status==='inactive'?leaveDate:'', zone};
+      if(password) payload.password = password;
+      await ref.update(payload);
+      toast('✓ Đã cập nhật nhân sự');
+    }
+    resetEmpForm();
+  }catch(e){ toast('⚠️ Lỗi lưu nhân sự: '+e.message); }
 }
-function editEmployee(id){
-  const e = db.employees.find(x=>x.id===id); if(!e) return;
-  editingEmployeeId = id;
+function editEmployee(empId){
+  const e = state.employees.find(x=>x.empId===empId); if(!e) return;
+  editingEmployeeId = empId;
   document.getElementById('empFormName').value = e.name;
   document.getElementById('empFormId').value = e.empId;
+  document.getElementById('empFormId').disabled = true;
   document.getElementById('empFormRole').value = e.role;
   populateEmpWarehouseSelect();
   document.getElementById('empFormWarehouse').value = e.warehouse;
@@ -1128,25 +1299,21 @@ function editEmployee(id){
   onEmpRoleChange(); onEmpStatusChange();
   document.getElementById('empFormSubmitBtn').textContent = '💾 Cập nhật nhân sự';
 }
-function removeEmployee(id){
+async function removeEmployee(empId){
   if(!confirm('Xóa nhân sự này khỏi hệ thống?')) return;
-  db.employees = db.employees.filter(x=>x.id!==id);
-  persist();
-  renderEmployeeTable();
-  renderSetupDashboard();
-  populateAllDependentSelects();
-  toast('🗑️ Đã xóa nhân sự');
+  try{ await fdb.collection('employees').doc(empId).delete(); toast('🗑️ Đã xóa nhân sự'); }
+  catch(e){ toast('⚠️ Lỗi xóa: '+e.message); }
 }
 function renderEmployeeTable(){
   const tbody = document.getElementById('employeeTableBody');
-  const rows = db.employees.slice().sort((a,b)=> a.warehouse.localeCompare(b.warehouse) || a.role.localeCompare(b.role));
+  const rows = state.employees.slice().sort((a,b)=> a.warehouse.localeCompare(b.warehouse) || a.role.localeCompare(b.role));
   tbody.innerHTML = rows.map(e=>{
     const statusBadge = e.status==='active' ? '<span class="status on">Đang làm</span>' : ('<span class="status late">Nghỉ '+esc(e.leaveDate||'')+'</span>');
     return '<tr>'+
       '<td>'+esc(e.empId)+'</td><td>'+esc(e.name)+'</td>'+
       '<td><span class="role-tag role-'+esc(e.role)+'">'+esc(e.role)+'</span></td>'+
       '<td>'+esc(e.warehouse)+'</td><td>'+esc(e.startDate||'')+'</td><td>'+esc(e.zone||'')+'</td><td>'+statusBadge+'</td>'+
-      '<td><button class="btn light" onclick="editEmployee(\''+e.id+'\')">✏️</button> <button class="btn light" onclick="removeEmployee(\''+e.id+'\')">🗑️</button></td>'+
+      '<td><button class="btn light" onclick="editEmployee(\''+e.empId+'\')">✏️</button> <button class="btn light" onclick="removeEmployee(\''+e.empId+'\')">🗑️</button></td>'+
     '</tr>';
   }).join('') || '<tr><td colspan="8" class="empty">Chưa có nhân sự</td></tr>';
 }
@@ -1163,10 +1330,10 @@ function buildWarehouseRow(code, name){
 function renderWarehouseList(){
   const container = document.getElementById('warehouseList');
   container.innerHTML='';
-  db.warehouses.forEach(w=> container.appendChild(buildWarehouseRow(w.code, w.name)));
+  state.warehouses.forEach(w=> container.appendChild(buildWarehouseRow(w.code, w.name)));
 }
 function addWarehouseRow(){ document.getElementById('warehouseList').appendChild(buildWarehouseRow('','')); }
-function saveWarehouses(){
+async function saveWarehouses(){
   const rows = document.querySelectorAll('#warehouseList .report-type-item');
   const list=[]; let valid=true;
   rows.forEach(div=>{
@@ -1178,12 +1345,10 @@ function saveWarehouses(){
   if(!valid || !list.length){ toast('⚠️ Vui lòng nhập ít nhất 1 mã kho hợp lệ'); return; }
   const codes = list.map(w=>w.code);
   if(new Set(codes).size !== codes.length){ toast('⚠️ Mã kho bị trùng'); return; }
-  db.warehouses = list;
-  persist();
-  renderWarehouseList();
-  populateAllDependentSelects();
-  renderSetupDashboard();
-  toast('✓ Đã lưu danh sách kho');
+  try{
+    await fdb.collection('meta').doc('warehouses').set({list});
+    toast('✓ Đã lưu danh sách kho');
+  }catch(e){ toast('⚠️ Lỗi lưu kho: '+e.message); }
 }
 
 // ==================== ADMIN SETUP: REPORT CATEGORIES ====================
@@ -1217,14 +1382,14 @@ function buildTypeCard(cat, t){
 function renderReportCategoryList(cat){
   const container = document.getElementById('reportList'+cat);
   container.innerHTML='';
-  (db.reportCategories[cat]||[]).forEach(t=> container.appendChild(buildTypeCard(cat, t)));
+  (state.reportCategories[cat]||[]).forEach(t=> container.appendChild(buildTypeCard(cat, t)));
 }
 function addReportTypeCard(cat){
   const container = document.getElementById('reportList'+cat);
   const newId = cat.toLowerCase()+'_'+Date.now().toString(36);
   container.appendChild(buildTypeCard(cat, {id:newId, name:'', columns:['STT','Cột 2','Cột 3']}));
 }
-function saveReportCategories(){
+async function saveReportCategories(){
   const cats=['PU','DE','TC'];
   const newCats={}; let valid=true;
   cats.forEach(cat=>{
@@ -1241,20 +1406,17 @@ function saveReportCategories(){
     newCats[cat]=list;
   });
   if(!valid){ toast('⚠️ Vui lòng nhập đầy đủ tên báo cáo và ít nhất 1 cột cho mỗi báo cáo'); return; }
-  db.reportCategories = newCats;
-  persist();
-  cats.forEach(renderReportCategoryList);
-  populateAllDependentSelects();
-  updateColumnNames();
-  renderSetupDashboard();
-  toast('✓ Đã lưu cấu hình báo cáo');
+  try{
+    await fdb.collection('meta').doc('reportCategories').set(newCats);
+    toast('✓ Đã lưu cấu hình báo cáo');
+  }catch(e){ toast('⚠️ Lỗi lưu báo cáo: '+e.message); }
 }
 
 // ==================== ADMIN SETUP: DEADLINE / RESUBMIT CONFIG ====================
 function loadConfigForm(){
-  document.getElementById('cfgMaxAdjustMinutes').value = db.config.maxAdjustMinutes||60;
-  document.getElementById('cfgPenalty').value = db.config.penalty||15;
-  document.getElementById('cfgApproval').value = db.config.approval||'Tự động chấp nhận trong thời hạn';
+  document.getElementById('cfgMaxAdjustMinutes').value = state.config.maxAdjustMinutes||60;
+  document.getElementById('cfgPenalty').value = state.config.penalty||15;
+  document.getElementById('cfgApproval').value = state.config.approval||'Tự động chấp nhận trong thời hạn';
   const wh=document.getElementById('cfgWarehouse').value;
   const rt=document.getElementById('cfgReportType').value;
   if(rt){
@@ -1262,41 +1424,40 @@ function loadConfigForm(){
     document.getElementById('cfgGrace').value = graceFor(wh, rt);
   }
 }
-function saveDeadlineConfig(){
+async function saveDeadlineConfig(){
   const wh=document.getElementById('cfgWarehouse').value;
   const rt=document.getElementById('cfgReportType').value;
   if(!rt){ toast('Vui lòng chọn loại báo cáo'); return; }
   const deadline=document.getElementById('cfgDeadline').value;
-  const grace=+document.getElementById('cfgGrace').value;
+  const graceVal=+document.getElementById('cfgGrace').value;
   if(!deadline){ toast('Vui lòng nhập deadline'); return; }
-  if(isNaN(grace) || grace<0){ toast('Grace phải là số không âm'); return; }
-  if(!db.config.deadlines) db.config.deadlines={};
-  if(!db.config.deadlines[wh]) db.config.deadlines[wh]={};
-  db.config.deadlines[wh][rt]=deadline;
-  if(!db.config.grace) db.config.grace={};
-  if(!db.config.grace[wh]) db.config.grace[wh]={};
-  db.config.grace[wh][rt]=grace;
-  persist();
-  toast('✓ Đã lưu deadline '+deadline+', grace '+grace+' phút cho '+wh);
-  renderPerformance();
-  renderDashboard();
+  if(isNaN(graceVal) || graceVal<0){ toast('Grace phải là số không âm'); return; }
+  const deadlines = JSON.parse(JSON.stringify(state.config.deadlines||{}));
+  if(!deadlines[wh]) deadlines[wh]={};
+  deadlines[wh][rt]=deadline;
+  const grace = JSON.parse(JSON.stringify(state.config.grace||{}));
+  if(!grace[wh]) grace[wh]={};
+  grace[wh][rt]=graceVal;
+  try{
+    await fdb.collection('meta').doc('config').set({deadlines, grace}, {merge:true});
+    toast('✓ Đã lưu deadline '+deadline+', grace '+graceVal+' phút cho '+wh);
+  }catch(e){ toast('⚠️ Lỗi lưu deadline: '+e.message); }
 }
-function saveConfig(){
-  db.config.maxAdjustMinutes = +document.getElementById('cfgMaxAdjustMinutes').value||60;
-  db.config.penalty = +document.getElementById('cfgPenalty').value||0;
-  db.config.approval = document.getElementById('cfgApproval').value;
-  persist();
-  renderPerformance();
-  renderDashboard();
-  toast('✓ Đã lưu cấu hình chung');
+async function saveConfig(){
+  try{
+    await fdb.collection('meta').doc('config').set({
+      maxAdjustMinutes: +document.getElementById('cfgMaxAdjustMinutes').value||60,
+      penalty: +document.getElementById('cfgPenalty').value||0,
+      approval: document.getElementById('cfgApproval').value
+    }, {merge:true});
+    toast('✓ Đã lưu cấu hình chung');
+  }catch(e){ toast('⚠️ Lỗi lưu cấu hình: '+e.message); }
 }
-function resetConfig(){
-  db.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-  persist();
-  loadConfigForm();
-  renderPerformance();
-  renderDashboard();
-  toast('↩️ Đã khôi phục mặc định (deadline/grace/quy tắc)');
+async function resetConfig(){
+  try{
+    await fdb.collection('meta').doc('config').set(JSON.parse(JSON.stringify(DEFAULT_CONFIG)));
+    toast('↩️ Đã khôi phục mặc định (deadline/grace/quy tắc)');
+  }catch(e){ toast('⚠️ Lỗi: '+e.message); }
 }
 
 // ==================== INIT ====================
@@ -1304,12 +1465,12 @@ document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==
 document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('cfgWarehouse').addEventListener('change', loadConfigForm);
 document.getElementById('cfgReportType').addEventListener('change', loadConfigForm);
-document.getElementById('empFormWarehouse').addEventListener('change', ()=>{});
 (function init(){
   document.getElementById('mainApp').style.display='none';
   document.getElementById('loginOverlay').classList.remove('hidden');
-  document.getElementById('loginUser').focus();
+  bootstrapFirebase();
 })();
+
 </script>
 </body>
 </html>
