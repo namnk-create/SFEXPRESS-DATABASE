@@ -1,86 +1,51 @@
-# SFEXPRESS DATABASE v5 — Deploy lên Cloudflare (Pages + Functions + D1)
+# SFEXPRESS DATABASE v5.1 — Deploy Cloudflare Worker (Static Assets + D1)
 
-Kiến trúc mới thay thế Firebase Firestore:
-- **Cloudflare Pages** — host tĩnh `index.html` (giống cách bạn đang deploy GitHub Pages).
-- **Cloudflare Pages Functions** (`functions/api/[[path]].js`) — đóng vai trò "Worker API", chứa toàn bộ logic backend trước đây nằm trong Firestore Rules + Firebase SDK.
-- **Cloudflare D1** — database SQL (SQLite) thay thế Firestore, lưu warehouses/employees/reportCategories/config/sgnss/records/staff_log.
+## Vì sao đổi kiến trúc so với bản trước?
+Tài khoản Cloudflare hiện tại không còn hỗ trợ luồng **"Pages cổ điển" khi Connect to Git** — mọi project kết nối Git đều tự động tạo dưới dạng **Worker kiểu mới**, với Deploy command mặc định `npx wrangler deploy`. Thay vì cố ép quay lại Pages cổ điển, bản v5.1 này cấu hình đúng theo kiến trúc Worker mới, dùng tính năng **Static Assets** (Worker vừa phục vụ file tĩnh, vừa xử lý API) — đây cũng là hướng Cloudflare khuyến khích cho project mới.
 
-> **Lưu ý quan trọng về realtime**: D1 không có cơ chế "onSnapshot" như Firestore. Bản v5 dùng **polling** (client tự động gọi lại API mỗi 5–6 giây) để mô phỏng cập nhật gần-thời-gian-thực. Độ trễ tối đa ~5-6 giây thay vì tức thời như Firebase.
-
-## Các file trong gói này
+## Cấu trúc thư mục (BẮT BUỘC đúng như sau)
 ```
-index.html                     ← file chính, deploy làm trang tĩnh
-functions/api/[[path]].js      ← API backend (Cloudflare Pages Function)
-schema.sql                     ← schema D1 (chạy 1 lần khi setup)
-wrangler.toml                  ← cấu hình project + binding D1 (dùng nếu deploy bằng CLI)
-```
-
-## Bước 1 — Cài Wrangler CLI (nếu chưa có)
-```bash
-npm install -g wrangler
-wrangler login
+your-repo/
+├── worker.js          ← code Worker: routing + toàn bộ API (trước đây là functions/api/[[path]].js)
+├── wrangler.toml       ← cấu hình: main, assets, D1 binding
+├── schema.sql          ← chạy 1 lần trong D1 Console
+├── README-DEPLOY.md
+└── public/
+    └── index.html      ← toàn bộ giao diện (chuyển từ vị trí gốc vào đây)
 ```
 
-## Bước 2 — Tạo D1 database
-```bash
-wrangler d1 create sfexpress-db
+**Khác biệt quan trọng so với bản trước:**
+- KHÔNG còn thư mục `functions/api/`.
+- `index.html` chuyển vào trong thư mục `public/`.
+- File `worker.js` (ở ngoài cùng, ngang hàng `wrangler.toml`) là entry point duy nhất — gộp toàn bộ logic API cũ + thêm phần chuyển tiếp file tĩnh (`env.ASSETS.fetch(request)`).
+
+## Các bước deploy
+
+### Bước 1 — Cập nhật repo GitHub
+Xoá cấu trúc cũ (`funtions/`, hoặc `functions/`, và `index.html` ở gốc), thay bằng cấu trúc mới ở trên. Cách nhanh nhất: xoá sạch nội dung repo cũ, rồi tải lại đúng 5 mục trong gói này lên (qua GitHub Desktop: xoá file cũ trong thư mục local → copy đè bằng bộ file mới → Commit → Push).
+
+### Bước 2 — D1 database
+Không cần làm lại — `sfexpress-database` (D1) đã tồn tại sẵn, `wrangler.toml` đã điền đúng `database_id`.
+
+### Bước 3 — Tạo lại Worker project trên Cloudflare (Connect to Git)
+1. Cloudflare Dashboard → **Workers & Pages** → **Create application**
+2. Chọn **Connect to Git** (hoặc tương đương) → chọn repo đã cập nhật
+3. Build settings: để mặc định — **không cần sửa Deploy command**, vì giờ `wrangler.toml` đã có đủ `main` + `[assets]`, lệnh mặc định `npx wrangler deploy` sẽ tự chạy đúng.
+4. **Save and Deploy**
+
+### Bước 4 — Kiểm tra binding D1 tự động
+Vì `wrangler.toml` đã khai báo sẵn `[[d1_databases]]` với `binding = "DB"`, Cloudflare **tự động gán binding này khi deploy** — không cần vào tay Settings → Bindings để thêm nữa (khác với bản Pages cũ). Bạn có thể vào tab **Bindings** để xác nhận `DB` đã xuất hiện.
+
+### Bước 5 — Mở trang web kiểm tra
+Vào tab **Overview** của Worker vừa tạo, tìm URL dạng:
 ```
-Lệnh trên trả về một `database_id` — copy giá trị này dán vào file `wrangler.toml`, dòng `database_id = "..."`.
-
-## Bước 3 — Khởi tạo schema
-```bash
-wrangler d1 execute sfexpress-db --remote --file=./schema.sql
+https://sfexpress-database.<tên-bạn>.workers.dev
 ```
-(Function `functions/api/[[path]].js` cũng tự chạy `CREATE TABLE IF NOT EXISTS` + seed dữ liệu mặc định ở lần gọi API đầu tiên, nên bước này không bắt buộc 100% nhưng nên làm trước để chắc chắn schema đúng ngay từ đầu.)
+Mở URL đó — nếu thấy màn hình "🔐 ĐĂNG NHẬP" hiện ra bình thường (không lỗi kết nối) là thành công. Đăng nhập thử `SGNSS` / `67890`.
 
-## Bước 4 — Deploy lên Cloudflare Pages
+## Từ nay chỉnh sửa code ở đâu?
+- Sửa giao diện/tính năng hiển thị → sửa `public/index.html`
+- Sửa logic API / thêm bảng mới → sửa `worker.js`
+- Đổi cấu trúc database (thêm cột/bảng) → chạy `ALTER TABLE` trong D1 Console + cập nhật `schema.sql` + cập nhật `worker.js`
 
-### Cách A — Deploy trực tiếp bằng CLI (nhanh nhất để test)
-```bash
-cd /path/to/thu-muc-nay
-wrangler pages deploy . --project-name=sfexpress-database
-```
-Sau khi deploy, vào **Cloudflare Dashboard → Workers & Pages → sfexpress-database → Settings → Functions → D1 database bindings**, thêm binding:
-- Variable name: `DB`
-- D1 database: `sfexpress-db`
-
-Deploy lại (hoặc chỉ cần chờ vài giây) để binding có hiệu lực, sau đó vào lại URL Pages để dùng.
-
-### Cách B — Kết nối Git (khuyến khích cho lâu dài)
-1. Đẩy toàn bộ thư mục này lên một repo GitHub (giữ nguyên cấu trúc `index.html` ở root + thư mục `functions/`).
-2. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git → chọn repo.
-3. Build settings: **Framework preset: None**, **Build command: (để trống)**, **Build output directory: `/`**.
-4. Sau khi deploy lần đầu, vào Settings → Functions → D1 database bindings → thêm binding `DB` → chọn database `sfexpress-db`.
-5. Từ lần push tiếp theo, Cloudflare tự động build & deploy lại (giống GitHub Pages, nhưng có thêm API).
-
-## Bước 5 — Kiểm tra
-Mở URL Cloudflare Pages (dạng `https://sfexpress-database.pages.dev` hoặc domain riêng nếu đã gắn):
-- Màn hình đăng nhập sẽ hiện "🔄 Đang kết nối máy chủ Cloudflare..." rồi chuyển sang form đăng nhập nếu API hoạt động.
-- Nếu báo lỗi kết nối, mở DevTools Console (F12) để xem chi tiết — nguyên nhân thường gặp:
-  1. Chưa gán D1 binding tên `DB` trong Settings → Functions.
-  2. Chưa chạy `schema.sql` hoặc chưa deploy lại sau khi thêm binding.
-  3. Thư mục `functions/api/[[path]].js` không nằm đúng vị trí (phải là `functions/api/[[path]].js`, không phải `api/[[path]].js` ở root).
-
-Tài khoản demo giống hệt bản Firebase trước: `SGNSS`/`67890`, `WA001`/`12345`, `SSM001`/`12345`.
-
-## So sánh nhanh với bản v4 (Firebase)
-
-| | v4 — Firebase | v5 — Cloudflare |
-|---|---|---|
-| Lưu trữ | Firestore (NoSQL, tài liệu) | D1 (SQL, SQLite) |
-| Backend logic | Chạy hoàn toàn ở client + Security Rules | Chạy trong Pages Function (`functions/api/`) |
-| Cập nhật thời gian thực | `onSnapshot` (tức thời) | Polling 5–6 giây (gần thời gian thực) |
-| Deploy | Firebase Console (thủ công) + host tĩnh riêng | 1 project Cloudflare Pages (host + API + DB cùng chỗ) |
-| Chi phí | Free tier Firestore | Free tier Cloudflare D1 (5GB, 25 triệu read/ngày) |
-
-## Rủi ro bảo mật (giữ nguyên như bản v4, CẦN LƯU Ý)
-- Mật khẩu nhân viên/SGNSS vẫn lưu **plain-text** trong D1 (cột `password`). API hiện không có tầng xác thực request nào ngoài chính app kiểm tra mật khẩu ở phía client sau khi tải toàn bộ danh sách nhân viên — **bất kỳ ai gọi `GET /api/meta` cũng đọc được toàn bộ mật khẩu**. Mức bảo mật này tương đương bản Firebase trước (chỉ chặn truy cập nặc danh hoàn toàn, không che được mật khẩu).
-- Đây vẫn là mức bảo mật "nội bộ/demo". Nếu cần dùng thật với dữ liệu nhạy cảm, nên nâng cấp:
-  - Hash mật khẩu (bcrypt/scrypt) thay vì lưu plain-text.
-  - Thêm xác thực request thật (Cloudflare Access, JWT, hoặc session cookie ký bởi Worker) thay vì để client tự kiểm tra mật khẩu sau khi đã tải toàn bộ dữ liệu nhân viên.
-  - Giới hạn `GET /api/meta` không trả về cột `password` ra client (hiện tại trả về để client tự so sánh, giống hệt cách bản Firebase cũ hoạt động).
-
-## Ghi chú thay đổi hành vi so với bản Firebase
-- "Tải thêm" ở tab Download giờ dùng cursor theo `submittedAt` (thay vì `startAfter(doc)` của Firestore) — hoạt động tương đương, chỉ khác cơ chế nội bộ.
-- Khi nộp báo cáo, giờ gửi (`submittedAt`) được server sinh ra (ISO đầy đủ) thay vì client cắt tới phút — chính xác hơn khi so deadline.
-- Dữ liệu "tự làm mới" thay vì "tự động đồng bộ tức thời" — nếu 2 người dùng thao tác cùng lúc, người kia sẽ thấy thay đổi trong tối đa ~5-6 giây thay vì ngay lập tức.
+Mỗi lần sửa xong, chỉ cần `git push` (hoặc Commit + Push trong GitHub Desktop) — Cloudflare tự động deploy lại.

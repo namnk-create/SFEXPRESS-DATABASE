@@ -1,8 +1,7 @@
-// SFEXPRESS DATABASE — Cloudflare Pages Function (API layer)
-// Route: /api/*  — bind D1 database as "DB" in Pages project settings (Functions > D1 database bindings)
-//
-// Thay thế toàn bộ Firebase Firestore (v4) bằng Cloudflare D1 + Pages Functions (v5).
-// Vì D1 không có realtime listener (onSnapshot), client (index.html) sẽ polling định kỳ các endpoint GET dưới đây.
+// SFEXPRESS DATABASE — Cloudflare Worker (Static Assets + API) v5.1
+// Một Worker duy nhất: phục vụ index.html tĩnh (thư mục public/) VÀ xử lý toàn bộ API /api/* bằng D1.
+// Kiến trúc này thay cho "Pages Functions" cũ vì tài khoản Cloudflare mới không còn hỗ trợ luồng Connect-to-Git kiểu Pages cổ điển.
+// D1 không có realtime listener (onSnapshot) — client (public/index.html) polling định kỳ các endpoint GET dưới đây.
 
 const DEFAULT_WAREHOUSES = [
   { code: 'SGN01S', name: 'Kho SGN01S' },
@@ -125,12 +124,10 @@ function rowToRecord(row) {
   };
 }
 
-export async function onRequest(context) {
-  const { request, env } = context;
+async function handleApi(request, env, url) {
   const db = env.DB;
-  if (!db) return serverError(new Error('Thiếu D1 binding "DB" — vào Cloudflare Pages > Settings > Functions > D1 database bindings để gán.'));
+  if (!db) return serverError(new Error('Thiếu D1 binding "DB" — vào Cloudflare Dashboard > Worker > Settings > Bindings để gán.'));
 
-  const url = new URL(request.url);
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
   const method = request.method;
 
@@ -314,3 +311,15 @@ export async function onRequest(context) {
     return serverError(e);
   }
 }
+
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/') || url.pathname === '/api') {
+      return handleApi(request, env, url);
+    }
+    // Mọi request khác: phục vụ file tĩnh trong thư mục public/ (index.html, v.v.)
+    return env.ASSETS.fetch(request);
+  }
+};

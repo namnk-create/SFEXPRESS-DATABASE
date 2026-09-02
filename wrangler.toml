@@ -1,10 +1,14 @@
 name = "sfexpress-database"
-pages_build_output_dir = "."
+main = "worker.js"
 compatibility_date = "2026-01-01"
 
-# Sau khi tạo D1 bằng: wrangler d1 create sfexpress-db
-# Dán "database_id" mà lệnh trên trả về vào dưới đây.
+# Phục vụ file tĩnh (index.html) từ thư mục public/
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 database đã tạo trên Cloudflare Dashboard
 [[d1_databases]]
 binding = "DB"
-database_name = "sfexpress-db"
-database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+database_name = "sfexpress-database"
+database_id = "9f73f138-4046-4bd7-a865-be58bb57b747"
