@@ -1,0 +1,10 @@
+name = "sfexpress-database"
+pages_build_output_dir = "."
+compatibility_date = "2026-01-01"
+
+# Sau khi tạo D1 bằng: wrangler d1 create sfexpress-db
+# Dán "database_id" mà lệnh trên trả về vào dưới đây.
+[[d1_databases]]
+binding = "DB"
+database_name = "sfexpress-db"
+database_id = "PASTE_YOUR_DATABASE_ID_HERE"
